@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: analyses
+    // Document ID: {analysisId}
+    // Fields:
+    //   - id: string (required)
+    //   - timestamp: number (required)
+    //   - province: string (required)
+    //   - district: string (required)
+    //   - workOrderName: string (optional)
+    //   - createdBy: string (optional)
+    //   - lastUpdatedBy: string (optional)
+    //   - overallRisk: string (required, enum: Low, Medium, High, Critical)
+    //   - summary: string (required)
+    //   - historicalDataSummary: string (optional)
+    //   - blackSpots: array (required)
+    //   - recentAccidents: array (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "Nitislb@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidAnalysis(data) {
+      return data.id is string &&
+             data.timestamp is number &&
+             data.province is string &&
+             data.district is string &&
+             (!('workOrderName' in data) || data.workOrderName is string) &&
+             (!('createdBy' in data) || data.createdBy is string) &&
+             (!('lastUpdatedBy' in data) || data.lastUpdatedBy is string) &&
+             data.overallRisk in ['Low', 'Medium', 'High', 'Critical'] &&
+             data.summary is string &&
+             data.blackSpots is list &&
+             data.recentAccidents is list;
+    }
+
+    match /analyses/{analysisId} {
+      // Allow all authenticated users to read, create, update, and delete analyses
+      // as per user request: "Everyone who enter to the app can see history analysis and view edit and delete."
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidAnalysis(request.resource.data);
+      allow update: if isAuthenticated() && isValidAnalysis(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId && 
+                    (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+    }
+  }
+}

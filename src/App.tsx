@@ -11,7 +11,8 @@ import { SafetyAnalysis, BlackSpot, Accident } from './services/geminiService';
 import { auth, db, signIn, signOut, analysesCollection, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { onSnapshot, query, orderBy, limit, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { LogIn, LogOut, ShieldAlert, RefreshCw, Info } from 'lucide-react';
+import { LogIn, LogOut, ShieldAlert, RefreshCw, Info, Languages } from 'lucide-react';
+import { Locale, translations } from './i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -77,6 +78,9 @@ export default function App() {
   const [history, setHistory] = useState<SafetyAnalysis[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<{ lat: number, lng: number } | null>(null);
   const [view, setView] = useState<'map' | 'about'>('map');
+  const [locale, setLocale] = useState<Locale>('th');
+
+  const t = translations[locale];
 
   // Auth Listener
   useEffect(() => {
@@ -239,27 +243,37 @@ export default function App() {
   if (!user) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#050505] p-4">
+        <div className="absolute top-6 right-6 flex gap-2">
+          <button 
+            onClick={() => setLocale(locale === 'en' ? 'th' : 'en')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all text-xs font-medium"
+          >
+            <Languages className="w-3.5 h-3.5" />
+            {locale === 'en' ? 'ไทย' : 'English'}
+          </button>
+        </div>
+        
         <div className="max-w-md w-full glass-dark p-10 rounded-3xl text-center">
           <div className="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-blue-500/20">
             <ShieldAlert className="w-12 h-12 text-blue-400" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">Road Safety AI</h1>
+          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">{t.signInTitle}</h1>
           <p className="text-white/60 mb-10 font-medium leading-relaxed">
-            Sign in to access shared safety reports and contribute to community road safety.
+            {t.signInDesc}
           </p>
           <button
             onClick={signIn}
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-900/20 active:scale-95"
           >
             <LogIn className="w-6 h-6" />
-            Sign in with Google
+            {t.signInButton}
           </button>
           <button 
             onClick={() => setView('about')}
             className="mt-6 text-sm text-white/40 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto"
           >
             <Info className="w-4 h-4" />
-            About Road Safety AI
+            {t.aboutTitle}
           </button>
         </div>
       </div>
@@ -267,7 +281,7 @@ export default function App() {
   }
 
   if (view === 'about') {
-    return <AboutUs onBack={() => setView('map')} />;
+    return <AboutUs onBack={() => setView('map')} locale={locale} />;
   }
 
   return (
@@ -283,6 +297,8 @@ export default function App() {
           user={user}
           onSignOut={signOut}
           onShowAbout={() => setView('about')}
+          locale={locale}
+          setLocale={setLocale}
         />
         <div className="flex-1 relative w-full print:h-[500px] print:flex-none print:block print:w-full print:mb-8 print:break-inside-avoid print:border-2 print:border-gray-200">
           <MapComponent 
@@ -295,6 +311,7 @@ export default function App() {
             onAddSpot={handleAddSpot}
             isAnalysisActive={!!analysis}
             selectedPoint={selectedPoint}
+            locale={locale}
           />
         </div>
       </div>

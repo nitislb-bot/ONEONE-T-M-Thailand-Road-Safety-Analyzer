@@ -153,10 +153,13 @@ ${historicalData}`;
 export async function getDetailedAccidentReport(
   province: string,
   district: string,
-  accidents: Accident | Accident[]
+  accidents: Accident | Accident[],
+  language: 'English' | 'Thai' = 'English'
 ): Promise<string> {
   const accidentList = Array.isArray(accidents) ? accidents : [accidents];
   const prompt = `Provide a detailed, professional accident analysis report for the district of "${district}" in "${province}".
+  
+  LANGUAGE: Provide the entire report in ${language}.
   
   CONTEXT:
   The following accident(s) have been identified:
@@ -166,10 +169,11 @@ export async function getDetailedAccidentReport(
   1. Analyze the specific details of ${accidentList.length > 1 ? 'these accidents' : 'this accident'}.
   2. ${accidentList.length > 1 ? 'Analyze patterns and provide narratives for significant cases.' : 'Provide a deep narrative of the incident, including potential causes and environmental factors.'}
   3. Offer specific, data-driven safety recommendations for local authorities and drivers.
-  4. Use professional, authoritative language.
-  5. Format the output with clear headings and bullet points using Markdown.
+  4. ADVANCED PRECAUTIONS: Provide a dedicated section titled "Precautions for Drivers" (in ${language}) detailing EXACTLY what a driver should do when passing through these specific roads (e.g., speed adjustment, eye placement, gear selection if steep, specific lane positioning).
+  5. Use professional, authoritative language.
+  6. Format the output with clear headings and bullet points using Markdown.
   
-  The report should be comprehensive and provide "More Detail" as requested by the user to better understand the accident landscape in this specific area.`;
+  The report should be comprehensive and provide "More Detail" as requested by the user to better understand the accident landscape and exactly how to navigate it safely.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",

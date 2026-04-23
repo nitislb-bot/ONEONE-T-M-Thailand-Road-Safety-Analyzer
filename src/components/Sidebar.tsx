@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { analyzeArea, SafetyAnalysis, getDetailedAccidentReport, Accident } from '../services/geminiService';
 import { User } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
-import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages } from 'lucide-react';
+
+import { Locale, translations } from '../i18n';
 
 interface SidebarProps {
   analysis: SafetyAnalysis | null;
@@ -14,6 +16,8 @@ interface SidebarProps {
   user: User;
   onSignOut: () => void;
   onShowAbout: () => void;
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
 }
 
 const PREDEFINED_RISK_FACTORS = [
@@ -40,8 +44,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteAnalysis,
   user,
   onSignOut,
-  onShowAbout
+  onShowAbout,
+  locale,
+  setLocale
 }) => {
+  const t = translations[locale];
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
   const [workOrderName, setWorkOrderName] = useState('');
@@ -57,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<Accident | Accident[] | null>(null);
 
   // Update local form state when analysis changes from history
   useEffect(() => {
@@ -95,15 +103,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setDeleteConfirmId(null);
   };
 
-  const handleGenerateDetailedReport = async (specificAccident?: Accident) => {
+  const handleGenerateDetailedReport = async (specificAccident?: Accident, langOverride?: 'English' | 'Thai') => {
     if (!analysis || !province || !district) return;
     
+    const target = specificAccident || analysis.recentAccidents;
+    setReportTarget(target);
     setIsGeneratingReport(true);
     try {
+      const reportLang = langOverride || (locale === 'th' ? 'Thai' : 'English');
       const report = await getDetailedAccidentReport(
         province, 
         district, 
-        specificAccident || analysis.recentAccidents
+        target,
+        reportLang
       );
       setDetailedReport(report);
       setIsReportModalOpen(true);
@@ -204,16 +216,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="flex items-center gap-1">
             <button 
+              onClick={() => setLocale(locale === 'en' ? 'th' : 'en')}
+              className="flex items-center gap-1.5 px-2 py-1 bg-white/5 border border-white/10 rounded-full text-white/50 hover:text-blue-400 hover:bg-blue-900/20 transition-all text-[10px] font-bold mr-1"
+            >
+              <Languages className="w-3 h-3" />
+              {locale === 'en' ? 'ไทย' : 'EN'}
+            </button>
+            <button 
               onClick={onShowAbout}
               className="p-2 text-white/40 hover:text-blue-400 hover:bg-blue-900/20 rounded-full transition-colors"
-              title="About Us"
+              title={t.aboutTitle}
             >
               <Info className="w-4 h-4" />
             </button>
             <button 
               onClick={onSignOut}
               className="p-2 text-white/40 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
-              title="Sign Out"
+              title={t.signOut}
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -229,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`p-2 rounded-full transition-colors print:hidden ${
               showHistory ? 'text-blue-400 bg-blue-900/30' : 'text-white/50 hover:text-blue-400 hover:bg-blue-900/30'
             }`}
-            title="View History"
+            title={t.historyTitle}
           >
             <History className="w-5 h-5" />
           </button>
@@ -276,8 +295,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {history.length === 0 ? (
                 <div className="text-center py-10 px-4 border border-dashed border-white/10 rounded-xl">
                   <History className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/40">No analysis history found.</p>
-                  <p className="text-[10px] text-white/20 mt-1">Start a new analysis to see it here.</p>
+                  <p className="text-sm text-white/40">{t.noHistory}</p>
+                  <p className="text-[10px] text-white/20 mt-1">{t.startNewAnalysis}</p>
                 </div>
               ) : history.filter(item => {
                 const searchLower = historySearchTerm.toLowerCase();
@@ -290,7 +309,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }).length === 0 ? (
                 <div className="text-center py-10 px-4">
                   <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/40">No matches for "{historySearchTerm}"</p>
+                  <p className="text-sm text-white/40">{t.noMatches} "{historySearchTerm}"</p>
                 </div>
               ) : (
                 history
@@ -327,17 +346,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex flex-col gap-0.5 text-[10px] text-white/40">
                         <div className="flex justify-between items-center">
                           <span>{new Date(item.timestamp || 0).toLocaleDateString()}</span>
-                          {item.createdBy && <span className="text-blue-400/60">By: {item.createdBy}</span>}
+                          {item.createdBy && <span className="text-blue-400/60">{t.by}: {item.createdBy}</span>}
                         </div>
                         {item.lastUpdatedBy && item.lastUpdatedBy !== item.createdBy && (
-                          <div className="text-right">Updated by: {item.lastUpdatedBy}</div>
+                          <div className="text-right">{t.updatedBy}: {item.lastUpdatedBy}</div>
                         )}
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getRiskColor(item.overallRisk)}`}>
-                          {item.overallRisk} Risk
+                          {item.overallRisk} {locale === 'en' ? 'Risk' : 'ความเสี่ยง'}
                         </span>
-                        <span className="text-xs text-white/40">{item.blackSpots.length} spots</span>
+                        <span className="text-xs text-white/40">{item.blackSpots.length} {t.spots}</span>
                       </div>
                     </button>
                     <button
@@ -359,7 +378,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-4 md:p-6 print:p-0">
             <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Work Order Name (ชื่อใบสั่งงาน)</label>
+              <label className="block text-sm font-medium text-white/70 mb-1">{t.workOrderName}</label>
               <div className="relative">
                 <FileText className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
                 <input
@@ -372,7 +391,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">Province (จังหวัด)</label>
+              <label className="block text-sm font-medium text-white/70 mb-1">{t.province}</label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
                 <input
@@ -385,7 +404,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1">District/City (อำเภอ)</label>
+              <label className="block text-sm font-medium text-white/70 mb-1">{t.district}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
                 <input
@@ -789,7 +808,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center justify-between p-4 border-b border-white/10 bg-blue-900/20">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-blue-400" />
-                <h2 className="text-lg font-semibold text-white">Detailed Accident Analysis Report</h2>
+                <h2 className="text-lg font-semibold text-white">{t.detailedReportTitle}</h2>
               </div>
               <button
                 onClick={() => setIsReportModalOpen(false)}
@@ -799,26 +818,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-              <div className="prose prose-invert prose-sm prose-blue max-w-none text-white/90">
-                <div className="markdown-body">
-                  <ReactMarkdown>{detailedReport}</ReactMarkdown>
+              {isGeneratingReport ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60">
+                   <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+                   <p className="font-medium animate-pulse">{t.generatingReport}</p>
                 </div>
-              </div>
+              ) : (
+                <div className="prose prose-invert prose-sm prose-blue max-w-none text-white/90">
+                  <div className="markdown-body">
+                    <ReactMarkdown>{detailedReport}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end gap-3">
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/10 border border-white/10 rounded-lg hover:bg-white/20 transition-colors"
-              >
-                <Printer className="w-4 h-4" />
-                Print Report
-              </button>
-              <button
-                onClick={() => setIsReportModalOpen(false)}
-                className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
+            <div className="p-4 border-t border-white/10 bg-white/5 flex flex-wrap justify-between items-center gap-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleGenerateDetailedReport(Array.isArray(reportTarget) ? undefined : (reportTarget as Accident), 'Thai')}
+                  disabled={isGeneratingReport}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600/20 border border-blue-500/30 rounded-lg hover:bg-blue-600/40 transition-colors disabled:opacity-50"
+                >
+                  <Languages className="w-3.5 h-3.5" />
+                  {t.translateToThai}
+                </button>
+                <button
+                  onClick={() => handleGenerateDetailedReport(Array.isArray(reportTarget) ? undefined : (reportTarget as Accident), 'English')}
+                  disabled={isGeneratingReport}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  <Languages className="w-3.5 h-3.5" />
+                  {t.translateToEnglish}
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/10 border border-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  {t.printReport}
+                </button>
+                <button
+                  onClick={() => setIsReportModalOpen(false)}
+                  className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {t.close}
+                </button>
+              </div>
             </div>
           </div>
         </div>

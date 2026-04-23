@@ -5,6 +5,8 @@ import L from 'leaflet';
 import { BlackSpot, Accident } from '../services/geminiService';
 import { PlusCircle, AlertCircle, MapPin, Navigation, Info, X, Edit2, Save, Trash2, AlertTriangle, Move, MessageSquare, ThumbsUp, Send } from 'lucide-react';
 
+import { Locale, translations } from '../i18n';
+
 // Fix Leaflet's default icon path issues with Webpack/Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -53,9 +55,11 @@ interface FeedbackSectionProps {
   comments: { text: string; timestamp: number }[];
   onConfirm: () => void;
   onAddComment: (text: string) => void;
+  locale: Locale;
 }
 
-const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, comments, onConfirm, onAddComment }) => {
+const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, comments, onConfirm, onAddComment, locale }) => {
+  const t = translations[locale];
   const [newComment, setNewComment] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -70,7 +74,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, commen
     <div className="mt-3 pt-3 border-t border-white/10">
       <div className="mb-2 p-1.5 bg-blue-900/20 border border-blue-800/30 rounded text-[10px] text-blue-300 font-medium flex items-center gap-1.5">
         <Info className="w-3 h-3" />
-        Help verify this location: Confirm accuracy or drag marker to correct.
+        {t.helpVerify}
       </div>
       <div className="flex items-center justify-between mb-2">
         <button 
@@ -78,17 +82,17 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, commen
           className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:bg-blue-900/30 px-2 py-1 rounded transition-colors"
         >
           <ThumbsUp className="w-3.5 h-3.5" />
-          Confirm Accuracy ({confirmations})
+          {t.confirmAccuracy} ({confirmations})
         </button>
         <span className="text-[10px] text-white font-medium flex items-center gap-1">
           <MessageSquare className="w-3 h-3" />
-          {comments.length} Feedback
+          {comments.length} {t.feedback}
         </span>
       </div>
 
       <div className="space-y-2 max-h-32 overflow-y-auto mb-2 pr-1 custom-scrollbar">
         {comments.length === 0 ? (
-          <p className="text-[10px] text-white/80 italic text-center py-2">No feedback yet. Be the first to comment.</p>
+          <p className="text-[10px] text-white/80 italic text-center py-2">{t.noFeedback}</p>
         ) : (
           comments.map((c, i) => (
             <div key={i} className="bg-white/10 p-2 rounded text-[11px] text-white border border-white/20 shadow-sm">
@@ -104,7 +108,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, commen
       <form onSubmit={handleSubmit} className="flex gap-1">
         <input 
           type="text" 
-          placeholder="Add feedback..."
+          placeholder={t.addFeedbackPlaceholder}
           className="flex-1 text-[11px] px-2 py-1 bg-white/10 border border-white/20 rounded outline-none focus:ring-1 focus:ring-blue-500 text-white placeholder:text-white/60"
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
@@ -131,6 +135,7 @@ interface MapComponentProps {
   onAddSpot: (newSpot: BlackSpot) => void;
   isAnalysisActive: boolean;
   selectedPoint: { lat: number, lng: number } | null;
+  locale: Locale;
 }
 
 // Sub-component to handle map animations and view updates
@@ -198,8 +203,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   onDeleteAccident,
   onAddSpot, 
   isAnalysisActive,
-  selectedPoint
+  selectedPoint,
+  locale
 }) => {
+  const t = translations[locale];
   const defaultCenter: [number, number] = [13.7563, 100.5018]; // Default to Bangkok
   const [isAddMode, setIsAddMode] = useState(false);
   const [isSimulateMode, setIsSimulateMode] = useState(false);
@@ -455,7 +462,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                       <div className="flex items-center justify-between mb-3 border-b pb-2">
                         <h3 className="font-bold text-gray-800 flex items-center gap-2">
                           <Edit2 className="w-4 h-4 text-blue-600" />
-                          Edit Location
+                          {t.editLocation}
                         </h3>
                         <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-600">
                           <X className="w-4 h-4" />
@@ -464,7 +471,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                       
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location Name</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.locationName}</label>
                           <input 
                             type="text" 
                             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 outline-none text-black"
@@ -474,21 +481,21 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                         </div>
                         
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Risk Level</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.riskLevel}</label>
                           <select 
                             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 outline-none text-black"
                             value={editForm.riskLevel}
                             onChange={(e) => setEditForm({ ...editForm, riskLevel: e.target.value as any })}
                           >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
+                            <option value="Low">{locale === 'en' ? 'Low' : 'ต่ำ'}</option>
+                            <option value="Medium">{locale === 'en' ? 'Medium' : 'ปานกลาง'}</option>
+                            <option value="High">{locale === 'en' ? 'High' : 'สูง'}</option>
+                            <option value="Critical">{locale === 'en' ? 'Critical' : 'วิกฤต'}</option>
                           </select>
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Risk Factors</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.riskFactorsTitle}</label>
                           <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded bg-gray-50">
                             {editForm.riskFactors.map((factor, i) => (
                               <div key={i} className="flex gap-1">
@@ -501,7 +508,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                                     newFactors[i] = e.target.value;
                                     setEditForm({ ...editForm, riskFactors: newFactors });
                                   }}
-                                  placeholder="Describe risk factor..."
+                                  placeholder={t.customRiskPlaceholder}
                                 />
                                 <button 
                                   type="button"
@@ -522,13 +529,13 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                               className="w-full py-1.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 border border-dashed border-blue-300 rounded flex items-center justify-center gap-1 transition-colors"
                             >
                               <PlusCircle className="w-3 h-3" />
-                              Add New Factor
+                              {locale === 'en' ? 'Add New Factor' : 'เพิ่มปัจจัยความเสี่ยง'}
                             </button>
                           </div>
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recommendation</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.recommendation}</label>
                           <textarea 
                             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 outline-none h-16 resize-none text-black"
                             value={editForm.recommendation}
@@ -537,7 +544,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Coordinates (Drag marker to update)</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.coordinates} ({t.dragToUpdate})</label>
                           <div className="grid grid-cols-2 gap-2">
                             <div className="bg-gray-100 px-2 py-1.5 rounded text-xs text-gray-600 font-mono">
                               Lat: {editForm.latitude.toFixed(6)}
@@ -554,12 +561,12 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                           >
                             <Save className="w-4 h-4" />
-                            Save
+                            {t.save}
                           </button>
                           <button 
                             onClick={() => setDeleteConfirmSpot(editingSpotIndex)}
                             className="px-3 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded text-sm font-bold transition-colors"
-                            title="Delete this spot"
+                            title={t.delete}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -567,7 +574,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                             onClick={handleCancelEdit}
                             className="px-3 py-2 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded text-sm font-bold transition-colors"
                           >
-                            Cancel
+                            {t.cancel}
                           </button>
                         </div>
                       </div>
@@ -580,21 +587,21 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                           <button 
                             onClick={() => startEditing(spot.originalIndex, spot)}
                             className="p-1 hover:bg-white/10 rounded text-blue-400 transition-colors"
-                            title="Edit this location"
+                            title={t.editLocation}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => setDeleteConfirmSpot(spot.originalIndex)}
                             className="p-1 hover:bg-red-900/20 rounded text-red-400 transition-colors"
-                            title="Delete this location"
+                            title={t.delete}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-semibold text-white/90">Risk Level:</span>
+                        <span className="text-sm font-semibold text-white/90">{t.riskLevel}:</span>
                         <span className={`px-2 py-0.5 rounded text-xs font-bold text-white`} style={{ backgroundColor: getMarkerColor(spot.riskLevel) }}>
                           {spot.riskLevel}
                         </span>
@@ -602,31 +609,31 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                       
                       <div className="flex items-center gap-1.5 text-[10px] text-blue-300 font-bold uppercase mb-2 bg-blue-900/20 p-1 rounded">
                         <Move className="w-3 h-3" />
-                        Drag marker to correct location
+                        {t.dragToCorrect}
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 mb-2 text-center">
                         <div className="bg-white/10 p-1 rounded">
-                          <div className="text-xs text-white/60">Accidents</div>
+                          <div className="text-xs text-white/60">{t.accidents}</div>
                           <div className="font-bold text-white">{spot.accidentCount}</div>
                         </div>
                         <div className="bg-orange-900/20 p-1 rounded">
-                          <div className="text-xs text-orange-300">Injuries</div>
+                          <div className="text-xs text-orange-300">{t.injuries}</div>
                           <div className="font-bold text-white">{spot.injuryCount}</div>
                         </div>
                         <div className="bg-red-900/20 p-1 rounded">
-                          <div className="text-xs text-red-300">Fatalities</div>
+                          <div className="text-xs text-red-300">{t.fatalities}</div>
                           <div className="font-bold text-white">{spot.fatalityCount}</div>
                         </div>
                       </div>
                       <div className="mb-2">
-                        <span className="text-sm font-semibold text-white/90">Risk Factors:</span>
+                        <span className="text-sm font-semibold text-white/90">{t.riskFactorsTitle}:</span>
                         <ul className="list-disc list-inside text-sm text-white mt-1">
                           {spot.riskFactors.map((factor, i) => <li key={i}>{factor}</li>)}
                         </ul>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-white/90">Recommendation:</span>
+                        <span className="text-sm font-semibold text-white/90">{t.recommendation}:</span>
                         <p className="text-sm text-white mt-1">{spot.recommendation}</p>
                       </div>
 
@@ -645,6 +652,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                             comments: [...(spot.comments || []), { text, timestamp: Date.now() }]
                           });
                         }}
+                        locale={locale}
                       />
                     </div>
                   )}
@@ -674,12 +682,12 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-red-400" />
-                    <h3 className="font-bold text-lg text-red-400">Recent Accident</h3>
+                    <h3 className="font-bold text-lg text-red-400">{t.recentAccident}</h3>
                   </div>
                   <button 
                     onClick={() => setDeleteConfirmAccident(acc.originalIndex)}
                     className="p-1 text-white/40 hover:text-red-400 hover:bg-red-900/20 rounded-md transition-all"
-                    title="Delete Accident"
+                    title={t.delete}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -688,7 +696,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 
                 <div className="flex items-center gap-1.5 text-[10px] text-red-300 font-bold uppercase mb-2 bg-red-900/20 p-1 rounded">
                   <Move className="w-3 h-3" />
-                  Drag marker to correct location
+                  {t.dragToCorrect}
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
@@ -699,7 +707,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                   "{acc.description}"
                 </p>
                 <div className="mt-2 pt-2 border-t border-white/10">
-                  <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Type:</span>
+                  <span className="text-xs font-bold text-white/60 uppercase tracking-wider">{t.type}:</span>
                   <p className="text-sm text-white">{acc.type}</p>
                 </div>
 
@@ -718,6 +726,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                       comments: [...(acc.comments || []), { text, timestamp: Date.now() }]
                     });
                   }}
+                  locale={locale}
                 />
               </div>
             </Popup>
@@ -739,8 +748,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
               <AlertCircle className="w-8 h-8 text-red-600" />
             </div>
             <div className="flex-1">
-              <h4 className="font-bold text-lg leading-tight">Accident Ahead: Drive with Caution</h4>
-              <p className="text-sm opacity-90">Approaching {activeAlert.locationName}</p>
+              <h4 className="font-bold text-lg leading-tight">{locale === 'en' ? 'Accident Ahead: Drive with Caution' : 'มีอุบัติเหตุข้างหน้า: โปรดขับรถด้วยความระมัดระวัง'}</h4>
+              <p className="text-sm opacity-90">{locale === 'en' ? 'Approaching' : 'กำลังเข้าสู่'} {activeAlert.locationName}</p>
             </div>
             <button 
               onClick={() => setActiveAlert(null)}
@@ -766,7 +775,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             }`}
           >
             <PlusCircle className="w-5 h-5" />
-            {isAddMode ? 'Click on map to add spot' : 'Add Risk Spot'}
+            {isAddMode ? (locale === 'en' ? 'Click on map to add spot' : 'คลิกบนแผนที่เพื่อเพิ่มจุด') : (locale === 'en' ? 'Add Risk Spot' : 'เพิ่มจุดเสี่ยง')}
           </button>
           
           <button
@@ -781,7 +790,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             }`}
           >
             <Navigation className="w-5 h-5" />
-            {isSimulateMode ? 'Click map to simulate location' : 'Simulate Route Proximity'}
+            {isSimulateMode ? (locale === 'en' ? 'Click map to simulate' : 'คลิกแผนที่เพื่อจำลองตำแหน่ง') : (locale === 'en' ? 'Simulate Proximity' : 'จำลองความใกล้ชิด')}
           </button>
         </div>
       )}
@@ -791,14 +800,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Info className="w-3.5 h-3.5 text-white/50" />
-            <h5 className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Map Legend</h5>
+            <h5 className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{t.mapLegend}</h5>
           </div>
           {filterType && (
             <button 
               onClick={() => setFilterType(null)}
               className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
             >
-              Clear Filter
+              {t.clearFilter}
             </button>
           )}
         </div>
@@ -809,8 +818,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-3.5 h-3.5 rounded-full bg-red-600 flex items-center justify-center text-[8px] text-white font-bold shadow-sm shadow-red-900/40">!</div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Recent Accident</span>
-              {filterType === 'Accident' && <span className="text-[9px] text-red-300/70 leading-tight">Showing only recent crash reports</span>}
+              <span className="text-[11px] text-white/90 font-medium">{t.recentAccident}</span>
+              {filterType === 'Accident' && <span className="text-[9px] text-red-300/70 leading-tight">{locale === 'en' ? 'Showing only recent crash reports' : 'แสดงเฉพาะรายงานการชนล่าสุด'}</span>}
             </div>
           </button>
           
@@ -820,8 +829,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-3.5 h-3.5 rounded-full bg-red-500 shadow-sm shadow-red-900/40"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Critical Risk Spot</span>
-              {filterType === 'Critical' && <span className="text-[9px] text-red-300/70 leading-tight">Highest priority safety hazards</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Critical Risk Spot' : 'จุดเสี่ยงวิกฤต'}</span>
+              {filterType === 'Critical' && <span className="text-[9px] text-red-300/70 leading-tight">{locale === 'en' ? 'Highest priority safety hazards' : 'อันตรายด้านความปลอดภัยที่มีความสำคัญสูงสุด'}</span>}
             </div>
           </button>
 
@@ -831,8 +840,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-sm shadow-orange-900/40"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">High Risk Zone</span>
-              {filterType === 'High' && <span className="text-[9px] text-orange-300/70 leading-tight">Significant safety concerns</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'High Risk Zone' : 'เขตความเสี่ยงสูง'}</span>
+              {filterType === 'High' && <span className="text-[9px] text-orange-300/70 leading-tight">{locale === 'en' ? 'Significant safety concerns' : 'ข้อกังวลด้านความปลอดภัยที่สำคัญ'}</span>}
             </div>
           </button>
 
@@ -842,8 +851,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-yellow-500 bg-yellow-500/20 rounded-full"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Poor Lighting</span>
-              {filterType === 'Poor Lighting' && <span className="text-[9px] text-yellow-300/70 leading-tight">Areas with low visibility at night</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Poor Lighting' : 'แสงสว่างไม่เพียงพอ'}</span>
+              {filterType === 'Poor Lighting' && <span className="text-[9px] text-yellow-300/70 leading-tight">{locale === 'en' ? 'Areas with low visibility at night' : 'บริเวณที่ทัศนวิสัยต่ำในเวลากลางคืน'}</span>}
             </div>
           </button>
 
@@ -853,8 +862,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-0.5 bg-white/60"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Sharp Curve</span>
-              {filterType === 'Sharp Curve' && <span className="text-[9px] text-white/50 leading-tight">Dangerous bends or winding roads</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Sharp Curve' : 'ทางโค้งอันตราย'}</span>
+              {filterType === 'Sharp Curve' && <span className="text-[9px] text-white/50 leading-tight">{locale === 'en' ? 'Dangerous bends or winding roads' : 'ทางโค้งที่อันตรายหรือถนนที่คดเคี้ยว'}</span>}
             </div>
           </button>
 
@@ -864,8 +873,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border-2 border-orange-500 bg-orange-500/20 rounded-full"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Construction</span>
-              {filterType === 'Construction' && <span className="text-[9px] text-orange-300/70 leading-tight">Active roadwork or hazards</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Construction' : 'เขตก่อสร้าง'}</span>
+              {filterType === 'Construction' && <span className="text-[9px] text-orange-300/70 leading-tight">{locale === 'en' ? 'Active roadwork or hazards' : 'มีการก่อสร้างถนนหรืออันตราย'}</span>}
             </div>
           </button>
 
@@ -875,8 +884,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-indigo-500 bg-indigo-500/20 rounded-full"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Slippery Road</span>
-              {filterType === 'Slippery' && <span className="text-[9px] text-indigo-300/70 leading-tight">Oil, water, or skid hazards</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Slippery Road' : 'ถนนลื่น'}</span>
+              {filterType === 'Slippery' && <span className="text-[9px] text-indigo-300/70 leading-tight">{locale === 'en' ? 'Oil, water, or skid hazards' : 'น้ำมัน น้ำ หรืออันตรายจากการลื่นไถล'}</span>}
             </div>
           </button>
 
@@ -886,8 +895,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-purple-500 bg-purple-500/20 rounded-full"></div>
             <div className="flex flex-col">
-              <span className="text-[11px] text-white/90 font-medium">Steep Slope</span>
-              {filterType === 'Steep' && <span className="text-[9px] text-purple-300/70 leading-tight">Dangerous inclines or declines</span>}
+              <span className="text-[11px] text-white/90 font-medium">{locale === 'en' ? 'Steep Slope' : 'ทางลาดชัน'}</span>
+              {filterType === 'Steep' && <span className="text-[9px] text-purple-300/70 leading-tight">{locale === 'en' ? 'Dangerous inclines or declines' : 'ทางลาดหรือทางชันที่อันตราย'}</span>}
             </div>
           </button>
         </div>
@@ -899,10 +908,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           <div className="bg-[#0f0f0f] w-full max-w-xs rounded-xl shadow-2xl p-5 border border-white/10 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 text-red-500 mb-3">
               <AlertTriangle className="w-5 h-5" />
-              <h3 className="font-bold text-white">Remove Record?</h3>
+              <h3 className="font-bold text-white">{locale === 'en' ? 'Remove Record?' : 'ลบบันทึก?'}</h3>
             </div>
             <p className="text-xs text-white/60 mb-5 leading-relaxed">
-              Are you sure you want to remove this record? This change will be shared with all users.
+              {locale === 'en' ? 'Are you sure you want to remove this record? This change will be shared with all users.' : 'คุณแน่ใจหรือไม่ว่าต้องการลบบันทึกนี้? การเปลี่ยนแปลงนี้จะถูกแชร์กับผู้ใช้ทุกคน'}
             </p>
             <div className="flex gap-2">
               <button
@@ -912,7 +921,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 }}
                 className="flex-1 px-3 py-2 text-xs font-medium text-white bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={() => {
@@ -928,7 +937,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 }}
                 className="flex-1 px-3 py-2 text-xs font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
               >
-                Delete
+                {t.delete}
               </button>
             </div>
           </div>

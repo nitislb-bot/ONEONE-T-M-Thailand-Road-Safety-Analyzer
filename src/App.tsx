@@ -11,7 +11,7 @@ import { SafetyAnalysis, BlackSpot, Accident } from './services/geminiService';
 import { auth, db, signIn, signOut, analysesCollection, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { onSnapshot, query, orderBy, limit, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { LogIn, LogOut, ShieldAlert, RefreshCw, Info, Languages } from 'lucide-react';
+import { LogIn, LogOut, ShieldAlert, RefreshCw, Info, Languages, MapPin } from 'lucide-react';
 import { Locale, translations } from './i18n';
 
 interface ErrorBoundaryProps {
@@ -79,6 +79,8 @@ export default function App() {
   const [selectedPoint, setSelectedPoint] = useState<{ lat: number, lng: number } | null>(null);
   const [view, setView] = useState<'map' | 'about'>('map');
   const [locale, setLocale] = useState<Locale>('th');
+  const [activeTab, setActiveTab] = useState<'map' | 'sidebar'>('sidebar');
+  const [requestedAccident, setRequestedAccident] = useState<Accident | null>(null);
 
   const t = translations[locale];
 
@@ -135,6 +137,8 @@ export default function App() {
     try {
       await setDoc(doc(db, 'analyses', id), newAnalysis);
       setAnalysis(newAnalysis);
+      // Switch to map on mobile when analysis is complete
+      setActiveTab('map');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `analyses/${id}`);
     }
@@ -226,10 +230,12 @@ export default function App() {
 
   const handleLoadHistory = (item: SafetyAnalysis) => {
     setAnalysis(item);
+    setActiveTab('map');
   };
 
   const handlePointClick = (lat: number, lng: number) => {
     setSelectedPoint({ lat, lng });
+    setActiveTab('map');
   };
 
   if (!isAuthReady) {
@@ -286,21 +292,54 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col-reverse md:flex-row h-[100dvh] w-full bg-[#050505] overflow-hidden font-sans print:flex-col print:h-auto print:bg-white print:overflow-visible">
-        <Sidebar 
-          analysis={analysis}
-          onAnalysisComplete={handleAnalysisComplete} 
-          history={history}
-          onLoadHistory={handleLoadHistory}
-          onPointClick={handlePointClick}
-          onDeleteAnalysis={handleDeleteAnalysis}
-          user={user}
-          onSignOut={signOut}
-          onShowAbout={() => setView('about')}
-          locale={locale}
-          setLocale={setLocale}
-        />
-        <div className="flex-1 relative w-full print:h-[500px] print:flex-none print:block print:w-full print:mb-8 print:break-inside-avoid print:border-2 print:border-gray-200">
+      <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#050505] overflow-hidden font-sans print:flex-col print:h-auto print:bg-white print:overflow-visible">
+        {/* Mobile Navigation Tabs */}
+        <div className="md:hidden flex items-center justify-center p-2 bg-[#0a0a0a] border-t border-white/10 gap-4 z-50 order-last shrink-0">
+          <button 
+            onClick={() => setActiveTab('sidebar')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${
+              activeTab === 'sidebar' 
+                ? 'bg-blue-600/20 text-blue-400 font-bold' 
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            <ShieldAlert className="w-5 h-5" />
+            <span className="text-[10px] uppercase tracking-wider">{locale === 'en' ? 'Analysis' : 'การวิเคราะห์'}</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('map')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${
+              activeTab === 'map' 
+                ? 'bg-blue-600/20 text-blue-400 font-bold' 
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            <MapPin className="w-5 h-5" />
+            <span className="text-[10px] uppercase tracking-wider">{locale === 'en' ? 'Map View' : 'มุมมองแผนที่'}</span>
+          </button>
+        </div>
+
+        <div className={`${activeTab === 'sidebar' ? 'flex' : 'hidden md:flex'} w-full md:w-96 flex-col md:h-full shrink-0 h-full overflow-hidden`}>
+          <Sidebar 
+            analysis={analysis}
+            onAnalysisComplete={handleAnalysisComplete} 
+            history={history}
+            onLoadHistory={handleLoadHistory}
+            onPointClick={handlePointClick}
+            onDeleteAnalysis={handleDeleteAnalysis}
+            user={user}
+            onSignOut={signOut}
+            onShowAbout={() => setView('about')}
+            locale={locale}
+            setLocale={setLocale}
+            requestedAccident={requestedAccident}
+            clearRequestedAccident={() => setRequestedAccident(null)}
+          />
+        </div>
+        
+        <div className={`flex-1 relative w-full h-full print:h-[500px] print:flex-none print:block print:w-full print:mb-8 print:break-inside-avoid print:border-2 print:border-gray-200 ${
+          activeTab === 'map' ? 'block' : 'hidden md:block'
+        }`}>
           <MapComponent 
             blackSpots={analysis?.blackSpots || []} 
             recentAccidents={analysis?.recentAccidents || []}
@@ -312,6 +351,10 @@ export default function App() {
             isAnalysisActive={!!analysis}
             selectedPoint={selectedPoint}
             locale={locale}
+            onRequestDetailedReport={(acc) => {
+              setRequestedAccident(acc);
+              setActiveTab('sidebar'); // Switch to sidebar so user sees the loading state/modal
+            }}
           />
         </div>
       </div>

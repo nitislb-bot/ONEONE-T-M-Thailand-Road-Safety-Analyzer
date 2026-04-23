@@ -79,13 +79,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ confirmations, commen
       <div className="flex items-center justify-between mb-2">
         <button 
           onClick={onConfirm}
-          className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:bg-blue-900/30 px-2 py-1 rounded transition-colors"
+          className="flex items-center gap-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg transition-all active:scale-95 shadow-lg shadow-blue-900/40"
         >
-          <ThumbsUp className="w-3.5 h-3.5" />
+          <ThumbsUp className="w-4 h-4" />
           {t.confirmAccuracy} ({confirmations})
         </button>
-        <span className="text-[10px] text-white font-medium flex items-center gap-1">
-          <MessageSquare className="w-3 h-3" />
+        <span className="text-[10px] text-white font-medium flex items-center gap-1 bg-white/10 px-2 py-1.5 rounded-md">
+          <MessageSquare className="w-3.5 h-3.5" />
           {comments.length} {t.feedback}
         </span>
       </div>
@@ -136,6 +136,7 @@ interface MapComponentProps {
   isAnalysisActive: boolean;
   selectedPoint: { lat: number, lng: number } | null;
   locale: Locale;
+  onRequestDetailedReport: (accident: Accident) => void;
 }
 
 // Sub-component to handle map animations and view updates
@@ -179,8 +180,9 @@ const MapClickHandler: React.FC<{
   isAddMode: boolean, 
   setIsAddMode: (v: boolean) => void,
   onSetUserLocation: (latlng: L.LatLng) => void,
-  isSimulateMode: boolean
-}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode }) => {
+  isSimulateMode: boolean,
+  onToggleUi: () => void
+}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode, onToggleUi }) => {
   useMapEvents({
     click(e) {
       if (isAddMode) {
@@ -188,8 +190,15 @@ const MapClickHandler: React.FC<{
         setIsAddMode(false);
       } else if (isSimulateMode) {
         onSetUserLocation(e.latlng);
+      } else {
+        onToggleUi();
       }
     },
+    dragstart() {
+      if (window.innerWidth < 768) {
+        onToggleUi(); // Hide UI on mobile drag
+      }
+    }
   });
   return null;
 };
@@ -204,7 +213,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   onAddSpot, 
   isAnalysisActive,
   selectedPoint,
-  locale
+  locale,
+  onRequestDetailedReport
 }) => {
   const t = translations[locale];
   const defaultCenter: [number, number] = [13.7563, 100.5018]; // Default to Bangkok
@@ -217,6 +227,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [activeAlert, setActiveAlert] = useState<Accident | BlackSpot | null>(null);
   const [editingSpotIndex, setEditingSpotIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<BlackSpot | null>(null);
+  const [isUiHidden, setIsUiHidden] = useState(false);
 
   const startEditing = (index: number, spot: BlackSpot) => {
     setEditingSpotIndex(index);
@@ -320,6 +331,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           setIsAddMode={setIsAddMode}
           onSetUserLocation={setUserLocation}
           isSimulateMode={isSimulateMode}
+          onToggleUi={() => setIsUiHidden(prev => !prev)}
         />
         
         {/* User Location Marker */}
@@ -728,6 +740,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                   }}
                   locale={locale}
                 />
+
+                <button
+                  onClick={() => onRequestDetailedReport(acc)}
+                  className="w-full mt-3 flex items-center justify-center gap-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 py-2.5 rounded-lg text-xs font-bold border border-blue-500/30 transition-all active:scale-95 shadow-md"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  {locale === 'en' ? 'AI Case Detail' : 'รายละเอียดย้อนหลัง AI'}
+                </button>
               </div>
             </Popup>
           </Marker>
@@ -762,20 +782,20 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       )}
 
       {isAnalysisActive && (
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 print:hidden">
+        <div className={`absolute top-4 right-4 z-[1000] flex flex-col gap-2 transition-all duration-300 print:hidden ${isUiHidden ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100'}`}>
           <button
             onClick={() => {
               setIsAddMode(!isAddMode);
               setIsSimulateMode(false);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md shadow-md font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-lg font-bold transition-all active:scale-95 ${
               isAddMode 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-black/60 backdrop-blur-md hover:bg-black/80 text-white border border-white/10'
+                ? 'bg-red-600 text-white border-red-500' 
+                : 'bg-black/60 backdrop-blur-md text-white border border-white/10'
             }`}
           >
-            <PlusCircle className="w-5 h-5" />
-            {isAddMode ? (locale === 'en' ? 'Click on map to add spot' : 'คลิกบนแผนที่เพื่อเพิ่มจุด') : (locale === 'en' ? 'Add Risk Spot' : 'เพิ่มจุดเสี่ยง')}
+            <PlusCircle className="w-5 h-5 text-blue-400" />
+            <span className="hidden sm:inline font-bold tracking-tight">{isAddMode ? (locale === 'en' ? 'Click on map' : 'คลิกบนแผนที่') : (locale === 'en' ? 'Add Risk Spot' : 'เพิ่มจุดเสี่ยง')}</span>
           </button>
           
           <button
@@ -783,20 +803,20 @@ export const MapComponent: React.FC<MapComponentProps> = ({
               setIsSimulateMode(!isSimulateMode);
               setIsAddMode(false);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md shadow-md font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-lg font-bold transition-all active:scale-95 ${
               isSimulateMode 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                : 'bg-black/60 backdrop-blur-md hover:bg-black/80 text-white border border-white/10'
+                ? 'bg-blue-600 text-white border-blue-500' 
+                : 'bg-black/60 backdrop-blur-md text-white border border-white/10'
             }`}
           >
-            <Navigation className="w-5 h-5" />
-            {isSimulateMode ? (locale === 'en' ? 'Click map to simulate' : 'คลิกแผนที่เพื่อจำลองตำแหน่ง') : (locale === 'en' ? 'Simulate Proximity' : 'จำลองความใกล้ชิด')}
+            <Navigation className="w-5 h-5 text-blue-400" />
+            <span className="hidden sm:inline font-bold tracking-tight">{isSimulateMode ? (locale === 'en' ? 'Click map' : 'คลิกแผนที่') : (locale === 'en' ? 'Simulate' : 'จำลองความใกล้ชิด')}</span>
           </button>
         </div>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-6 left-6 z-[1000] glass-dark p-4 rounded-xl shadow-2xl border border-white/10 print:hidden max-w-[240px]">
+      <div className={`absolute bottom-20 md:bottom-6 left-6 z-[1000] glass-dark p-4 rounded-xl shadow-2xl border border-white/10 transition-all duration-300 print:hidden max-w-[240px] ${isUiHidden ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'}`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Info className="w-3.5 h-3.5 text-white/50" />

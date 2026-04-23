@@ -18,6 +18,8 @@ interface SidebarProps {
   onShowAbout: () => void;
   locale: Locale;
   setLocale: (locale: Locale) => void;
+  requestedAccident: Accident | null;
+  clearRequestedAccident: () => void;
 }
 
 const PREDEFINED_RISK_FACTORS = [
@@ -46,7 +48,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSignOut,
   onShowAbout,
   locale,
-  setLocale
+  setLocale,
+  requestedAccident,
+  clearRequestedAccident
 }) => {
   const t = translations[locale];
   const [province, setProvince] = useState('');
@@ -75,6 +79,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setSelectedRiskFactors(analysis.customRiskFactors || []);
     }
   }, [analysis]);
+
+  // Handle detailed report requests from components outside sidebar (e.g. Map)
+  useEffect(() => {
+    if (requestedAccident) {
+      handleGenerateDetailedReport(requestedAccident);
+      clearRequestedAccident();
+    }
+  }, [requestedAccident]);
 
   const toggleRiskFactor = (factor: string) => {
     setSelectedRiskFactors(prev => 
@@ -507,7 +519,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-md transition-colors flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 md:py-2.5 px-4 rounded-xl md:rounded-md transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-900/20"
               >
                 {isLoading ? (
                   <>

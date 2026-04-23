@@ -12,7 +12,20 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth helpers
-export const signIn = () => signInWithPopup(auth, googleProvider);
+export const signIn = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result;
+  } catch (error: any) {
+    console.error("Firebase Sign-in Error:", error);
+    if (error.code === 'auth/unauthorized-domain') {
+      alert("Unauthorized Domain: Please add your domain to Firebase Authentication Authorized Domains.");
+    } else {
+      alert("Sign-in failed: " + error.message);
+    }
+    throw error;
+  }
+};
 export const signOut = () => auth.signOut();
 
 // Firestore helpers

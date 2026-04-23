@@ -88,6 +88,10 @@ const RiskSpotMarker = React.memo(({
   const [isMinimized, setIsMinimized] = useState(false);
   const isSelected = activePoint?.originalIndex === spot.originalIndex && activePoint?.riskLevel !== undefined;
   
+  if (spot.latitude == null || isNaN(spot.latitude) || spot.longitude == null || isNaN(spot.longitude)) {
+    return null;
+  }
+
   const hasPoorLighting = spot.riskFactors.some((f: string) => 
     f.toLowerCase().includes('lighting') || 
     f.toLowerCase().includes('dark') || 
@@ -239,10 +243,10 @@ const RiskSpotMarker = React.memo(({
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.coordinates} ({t.dragToUpdate})</label>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-gray-100 px-2 py-1.5 rounded text-xs text-gray-600 font-mono">
-                      Lat: {editForm.latitude.toFixed(6)}
+                      Lat: {editForm.latitude != null && !isNaN(editForm.latitude) ? editForm.latitude.toFixed(6) : 'N/A'}
                     </div>
                     <div className="bg-gray-100 px-2 py-1.5 rounded text-xs text-gray-600 font-mono">
-                      Lng: {editForm.longitude.toFixed(6)}
+                      Lng: {editForm.longitude != null && !isNaN(editForm.longitude) ? editForm.longitude.toFixed(6) : 'N/A'}
                     </div>
                   </div>
                 </div>
@@ -365,6 +369,10 @@ const AccidentMarker = React.memo(({
 }: any) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const isSelected = activePoint?.originalIndex === acc.originalIndex && activePoint?.severity !== undefined;
+
+  if (acc.latitude == null || isNaN(acc.latitude) || acc.longitude == null || isNaN(acc.longitude)) {
+    return null;
+  }
 
   return (
     <React.Fragment>
@@ -604,7 +612,7 @@ const MapController: React.FC<{
 
   // Handle flyTo when a point is selected from sidebar
   useEffect(() => {
-    if (selectedPoint) {
+    if (selectedPoint && selectedPoint.lat != null && !isNaN(selectedPoint.lat) && selectedPoint.lng != null && !isNaN(selectedPoint.lng)) {
       map.flyTo([selectedPoint.lat, selectedPoint.lng], 16, {
         duration: 1.5,
         easeLinearity: 0.25
@@ -614,14 +622,27 @@ const MapController: React.FC<{
 
   // Handle smooth panning to active marker on click
   useEffect(() => {
-    if (activePoint && ('latitude' in activePoint)) {
+    let lat: number | null = null;
+    let lng: number | null = null;
+
+    if (activePoint) {
+      if ('latitude' in activePoint) {
+        lat = activePoint.latitude;
+        lng = activePoint.longitude;
+      } else if ('lat' in activePoint) {
+        lat = activePoint.lat;
+        lng = activePoint.lng;
+      }
+    }
+
+    if (lat != null && !isNaN(lat) && lng != null && !isNaN(lng)) {
       const isMobile = window.innerWidth < 768;
       const zoom = map.getZoom();
       
       // Calculate a target center that accounts for the mobile card
       // Shifting the view so the marker is in the top 40% of the screen
       if (isMobile) {
-        map.flyTo([activePoint.latitude, activePoint.longitude], Math.max(zoom, 15), {
+        map.flyTo([lat, lng], Math.max(zoom, 15), {
           duration: 0.8
         });
         
@@ -630,7 +651,7 @@ const MapController: React.FC<{
           map.panBy([0, -80], { animate: true });
         }, 850);
       } else {
-        map.flyTo([activePoint.latitude, activePoint.longitude], Math.max(zoom, 14), {
+        map.flyTo([lat, lng], Math.max(zoom, 14), {
           duration: 0.8
         });
       }
@@ -640,14 +661,16 @@ const MapController: React.FC<{
   // Automatically fit bounds when data changes
   useEffect(() => {
     if (blackSpots.length > 0 || recentAccidents.length > 0 || journeyPlan?.hazardsOnRoute?.length) {
-      const points: [number, number][] = [
-        ...blackSpots.map(s => [s.latitude, s.longitude] as [number, number]),
-        ...recentAccidents.map(a => [a.latitude, a.longitude] as [number, number]),
-        ...(journeyPlan?.hazardsOnRoute?.map(h => [h.lat, h.lng] as [number, number]) || [])
+      const allPoints: (number | null | undefined)[][] = [
+        ...blackSpots.map(s => [s.latitude, s.longitude]),
+        ...recentAccidents.map(a => [a.latitude, a.longitude]),
+        ...(journeyPlan?.hazardsOnRoute?.map(h => [h.lat, h.lng]) || [])
       ];
       
-      if (points.length > 0) {
-        const bounds = L.latLngBounds(points);
+      const validPoints = allPoints.filter(p => p[0] != null && !isNaN(p[0] as number) && p[1] != null && !isNaN(p[1] as number)) as [number, number][];
+      
+      if (validPoints.length > 0) {
+        const bounds = L.latLngBounds(validPoints);
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       }
     }
@@ -733,8 +756,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   // Memoize filtered lists to prevent unnecessary re-calculations on every render
   const filteredBlackSpots = React.useMemo(() => {
     const withIndices = blackSpots.map((spot, originalIndex) => ({ ...spot, originalIndex }));
+    const validSpots = withIndices.filter(spot => spot.latitude != null && !isNaN(spot.latitude) && spot.longitude != null && !isNaN(spot.longitude));
+    
     return filterType 
-      ? withIndices.filter(spot => 
+      ? validSpots.filter(spot => 
           spot.riskLevel === filterType || 
           spot.riskFactors.some(f => f.toLowerCase().includes(filterType.toLowerCase())) ||
           (filterType === 'Poor Lighting' && spot.riskFactors.some(f => f.toLowerCase().includes('light') || f.toLowerCase().includes('dark') || f.toLowerCase().includes('visibility'))) ||
@@ -744,14 +769,16 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           (filterType === 'Slippery' && spot.riskFactors.some(f => f.toLowerCase().includes('slippery') || f.toLowerCase().includes('oil') || f.toLowerCase().includes('skid'))) ||
           (filterType === 'Steep' && spot.riskFactors.some(f => f.toLowerCase().includes('steep') || f.toLowerCase().includes('slope') || f.toLowerCase().includes('hill')))
         )
-      : withIndices;
+      : validSpots;
   }, [blackSpots, filterType]);
 
   const filteredAccidents = React.useMemo(() => {
     const withIndices = recentAccidents.map((acc, originalIndex) => ({ ...acc, originalIndex }));
+    const validAccidents = withIndices.filter(acc => acc.latitude != null && !isNaN(acc.latitude) && acc.longitude != null && !isNaN(acc.longitude));
+    
     return filterType === 'Accident' 
-      ? withIndices 
-      : (filterType ? [] : withIndices);
+      ? validAccidents 
+      : (filterType ? [] : validAccidents);
   }, [recentAccidents, filterType]);
 
   const startEditing = (index: number, spot: BlackSpot) => {
@@ -899,7 +926,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         ))}
 
         {/* Journey Hazards */}
-        {journeyPlan && journeyPlan.hazardsOnRoute.map((hazard, idx) => (
+        {journeyPlan && journeyPlan.hazardsOnRoute.filter(h => h.lat != null && !isNaN(h.lat) && h.lng != null && !isNaN(h.lng)).map((hazard, idx) => (
           <Marker 
             key={`hazard-${idx}`}
             position={[hazard.lat, hazard.lng]} 
@@ -983,7 +1010,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                          {'severity' in activePoint ? activePoint.severity : activePoint.riskLevel}
                        </span>
                        <span className="text-[10px] text-white/50 font-medium">
-                         {activePoint.timestamp || `${activePoint.latitude.toFixed(3)}, ${activePoint.longitude.toFixed(3)}`}
+                         {activePoint.timestamp || (activePoint.latitude != null && !isNaN(activePoint.latitude) && activePoint.longitude != null && !isNaN(activePoint.longitude) ? `${activePoint.latitude.toFixed(3)}, ${activePoint.longitude.toFixed(3)}` : 'Unknown Location')}
                        </span>
                     </div>
                   </div>

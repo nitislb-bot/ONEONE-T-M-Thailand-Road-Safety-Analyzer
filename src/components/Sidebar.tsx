@@ -10,7 +10,11 @@ interface SidebarProps {
   analysis: SafetyAnalysis | null;
   onAnalysisComplete: (analysis: SafetyAnalysis) => void;
   history: SafetyAnalysis[];
+  journeyHistory: JourneySafetyReport[];
+  coachingHistory: DriverCoachingReport[];
   onLoadHistory: (analysis: SafetyAnalysis) => void;
+  onLoadJourneyHistory: (plan: JourneySafetyReport) => void;
+  onLoadCoachingHistory: (coaching: DriverCoachingReport) => void;
   onPointClick: (lat: number, lng: number) => void;
   onDeleteAnalysis: (id: string) => void;
   user: User;
@@ -21,6 +25,7 @@ interface SidebarProps {
   requestedAccident: Accident | null;
   clearRequestedAccident: () => void;
   onJourneyPlanComplete: (plan: JourneySafetyReport) => void;
+  onCoachingReportComplete: (report: DriverCoachingReport) => void;
 }
 
 const PREDEFINED_RISK_FACTORS = [
@@ -42,7 +47,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   analysis, 
   onAnalysisComplete, 
   history, 
+  journeyHistory,
+  coachingHistory,
   onLoadHistory,
+  onLoadJourneyHistory,
+  onLoadCoachingHistory,
   onPointClick,
   onDeleteAnalysis,
   user,
@@ -52,9 +61,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setLocale,
   requestedAccident,
   clearRequestedAccident,
-  onJourneyPlanComplete
+  onJourneyPlanComplete,
+  onCoachingReportComplete
 }) => {
   const [sidebarMode, setSidebarMode] = useState<'area' | 'journey' | 'coaching'>('area');
+  const [historyTab, setHistoryTab] = useState<'area' | 'journey' | 'coaching'>('area');
   const [journeyOrigin, setJourneyOrigin] = useState('');
   const [journeyDest, setJourneyDest] = useState('');
   const [journeyReport, setJourneyReport] = useState<JourneySafetyReport | null>(null);
@@ -196,6 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const report = await getDriverCoaching(analysis, journeyReport || undefined);
       setCoachingReport(report);
       setSidebarMode('coaching');
+      onCoachingReportComplete(report);
     } catch (err: any) {
       setError(err.message || 'Failed to generate coaching program.');
     } finally {
@@ -383,6 +395,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
 
+            <div className="flex bg-white/5 p-1 rounded-lg mb-4">
+              <button
+                onClick={() => setHistoryTab('area')}
+                className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${historyTab === 'area' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+              >
+                {t.areaAnalysis || 'Area'}
+              </button>
+              <button
+                onClick={() => setHistoryTab('journey')}
+                className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${historyTab === 'journey' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+              >
+                {t.journeyPlan || 'Journey'}
+              </button>
+              <button
+                onClick={() => setHistoryTab('coaching')}
+                className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${historyTab === 'coaching' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+              >
+                {t.driverCoaching || 'Coaching'}
+              </button>
+            </div>
+
             <div className="relative mb-4">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
               <input
@@ -403,85 +436,206 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="space-y-3">
-              {history.length === 0 ? (
-                <div className="text-center py-10 px-4 border border-dashed border-white/10 rounded-xl">
-                  <History className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/40">{t.noHistory}</p>
-                  <p className="text-[10px] text-white/20 mt-1">{t.startNewAnalysis}</p>
-                </div>
-              ) : history.filter(item => {
-                const searchLower = historySearchTerm.toLowerCase();
-                return (
-                  item.workOrderName?.toLowerCase().includes(searchLower) ||
-                  item.province?.toLowerCase().includes(searchLower) ||
-                  item.district?.toLowerCase().includes(searchLower) ||
-                  item.createdBy?.toLowerCase().includes(searchLower)
-                );
-              }).length === 0 ? (
-                <div className="text-center py-10 px-4">
-                  <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-white/40">{t.noMatches} "{historySearchTerm}"</p>
-                </div>
-              ) : (
-                history
-                  .filter(item => {
-                    const searchLower = historySearchTerm.toLowerCase();
-                    return (
-                      item.workOrderName?.toLowerCase().includes(searchLower) ||
-                      item.province?.toLowerCase().includes(searchLower) ||
-                      item.district?.toLowerCase().includes(searchLower) ||
-                      item.createdBy?.toLowerCase().includes(searchLower)
-                    );
-                  })
-                  .map((item) => (
-                  <div className="relative group/item" key={item.id}>
-                    <button
-                      onClick={() => {
-                        onLoadHistory(item);
-                        setShowHistory(false);
-                        setHistorySearchTerm('');
-                      }}
-                      className="w-full text-left p-3 border border-white/10 rounded-lg hover:border-blue-500/50 hover:bg-white/5 transition-colors group"
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-medium text-white text-sm truncate pr-16">
-                          {item.workOrderName || `${item.district}, ${item.province}`}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-blue-400 shrink-0 mt-0.5" />
-                      </div>
-                      {item.workOrderName && (
-                        <div className="text-[10px] text-white/60 mb-1 truncate">
-                          {item.district}, {item.province}
-                        </div>
-                      )}
-                      <div className="flex flex-col gap-0.5 text-[10px] text-white/40">
-                        <div className="flex justify-between items-center">
-                          <span>{new Date(item.timestamp || 0).toLocaleDateString()}</span>
-                          {item.createdBy && <span className="text-blue-400/60">{t.by}: {item.createdBy}</span>}
-                        </div>
-                        {item.lastUpdatedBy && item.lastUpdatedBy !== item.createdBy && (
-                          <div className="text-right">{t.updatedBy}: {item.lastUpdatedBy}</div>
-                        )}
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getRiskColor(item.overallRisk)}`}>
-                          {item.overallRisk} {locale === 'en' ? 'Risk' : 'ความเสี่ยง'}
-                        </span>
-                        <span className="text-xs text-white/40">{item.blackSpots.length} {t.spots}</span>
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteConfirmId(item.id!);
-                      }}
-                      className="absolute top-3 right-8 p-1.5 text-white/30 hover:text-red-400 hover:bg-red-900/20 rounded-md transition-all z-10"
-                      title="Delete Analysis"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {historyTab === 'area' && (
+                history.length === 0 ? (
+                  <div className="text-center py-10 px-4 border border-dashed border-white/10 rounded-xl">
+                    <History className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noHistory}</p>
+                    <p className="text-[10px] text-white/20 mt-1">{t.startNewAnalysis}</p>
                   </div>
-                ))
+                ) : history.filter(item => {
+                  const searchLower = historySearchTerm.toLowerCase();
+                  return (
+                    item.workOrderName?.toLowerCase().includes(searchLower) ||
+                    item.province?.toLowerCase().includes(searchLower) ||
+                    item.district?.toLowerCase().includes(searchLower) ||
+                    item.createdBy?.toLowerCase().includes(searchLower)
+                  );
+                }).length === 0 ? (
+                  <div className="text-center py-10 px-4">
+                    <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noMatches} "{historySearchTerm}"</p>
+                  </div>
+                ) : (
+                  history
+                    .filter(item => {
+                      const searchLower = historySearchTerm.toLowerCase();
+                      return (
+                        item.workOrderName?.toLowerCase().includes(searchLower) ||
+                        item.province?.toLowerCase().includes(searchLower) ||
+                        item.district?.toLowerCase().includes(searchLower) ||
+                        item.createdBy?.toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .map((item) => (
+                    <div className="relative group/item" key={item.id}>
+                      <button
+                        onClick={() => {
+                          onLoadHistory(item);
+                          setShowHistory(false);
+                          setHistorySearchTerm('');
+                        }}
+                        className="w-full text-left p-3 border border-white/10 rounded-lg hover:border-blue-500/50 hover:bg-white/5 transition-colors group"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-white text-sm truncate pr-16">
+                            {item.workOrderName || `${item.district}, ${item.province}`}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-blue-400 shrink-0 mt-0.5" />
+                        </div>
+                        {item.workOrderName && (
+                          <div className="text-[10px] text-white/60 mb-1 truncate">
+                            {item.district}, {item.province}
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-0.5 text-[10px] text-white/40">
+                          <div className="flex justify-between items-center">
+                            <span>{new Date(item.timestamp || 0).toLocaleDateString()}</span>
+                            {item.createdBy && <span className="text-blue-400/60">{t.by}: {item.createdBy}</span>}
+                          </div>
+                          {item.lastUpdatedBy && item.lastUpdatedBy !== item.createdBy && (
+                            <div className="text-right">{t.updatedBy}: {item.lastUpdatedBy}</div>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getRiskColor(item.overallRisk)}`}>
+                            {item.overallRisk} {locale === 'en' ? 'Risk' : 'ความเสี่ยง'}
+                          </span>
+                          <span className="text-xs text-white/40">{item.blackSpots.length} {t.spots}</span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmId(item.id!);
+                        }}
+                        className="absolute top-3 right-8 p-1.5 text-white/30 hover:text-red-400 hover:bg-red-900/20 rounded-md transition-all z-10"
+                        title="Delete Analysis"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
+
+              {historyTab === 'journey' && (
+                journeyHistory.length === 0 ? (
+                  <div className="text-center py-10 px-4 border border-dashed border-white/10 rounded-xl">
+                    <Route className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noHistory}</p>
+                  </div>
+                ) : journeyHistory.filter(item => {
+                  const searchLower = historySearchTerm.toLowerCase();
+                  return (
+                    item.origin?.toLowerCase().includes(searchLower) ||
+                    item.destination?.toLowerCase().includes(searchLower) ||
+                    item.createdBy?.toLowerCase().includes(searchLower)
+                  );
+                }).length === 0 ? (
+                  <div className="text-center py-10 px-4">
+                    <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noMatches} "{historySearchTerm}"</p>
+                  </div>
+                ) : (
+                  journeyHistory
+                    .filter(item => {
+                      const searchLower = historySearchTerm.toLowerCase();
+                      return (
+                        item.origin?.toLowerCase().includes(searchLower) ||
+                        item.destination?.toLowerCase().includes(searchLower) ||
+                        item.createdBy?.toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .map((item) => (
+                    <div className="relative group/item" key={item.id}>
+                      <button
+                        onClick={() => {
+                          onLoadJourneyHistory(item);
+                          setJourneyReport(item);
+                          setSidebarMode('journey');
+                          setShowHistory(false);
+                          setHistorySearchTerm('');
+                        }}
+                        className="w-full text-left p-3 border border-white/10 rounded-lg hover:border-blue-500/50 hover:bg-white/5 transition-colors group"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-white text-sm truncate pr-6">
+                            {item.origin} → {item.destination}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-blue-400 shrink-0 mt-0.5" />
+                        </div>
+                        <div className="flex flex-col gap-0.5 text-[10px] text-white/40">
+                          <div className="flex justify-between items-center">
+                            <span>{new Date(item.timestamp || 0).toLocaleDateString()}</span>
+                            {item.createdBy && <span className="text-blue-400/60">{t.by}: {item.createdBy}</span>}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${item.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : item.overallSafetyRating === 'Caution' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'}`}>
+                            {item.overallSafetyRating}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
+
+              {historyTab === 'coaching' && (
+                coachingHistory.length === 0 ? (
+                  <div className="text-center py-10 px-4 border border-dashed border-white/10 rounded-xl">
+                    <GraduationCap className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noHistory}</p>
+                  </div>
+                ) : coachingHistory.filter(item => {
+                  const searchLower = historySearchTerm.toLowerCase();
+                  return (
+                    item.locationContext?.toLowerCase().includes(searchLower) ||
+                    item.createdBy?.toLowerCase().includes(searchLower)
+                  );
+                }).length === 0 ? (
+                  <div className="text-center py-10 px-4">
+                    <Search className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                    <p className="text-sm text-white/40">{t.noMatches} "{historySearchTerm}"</p>
+                  </div>
+                ) : (
+                  coachingHistory
+                    .filter(item => {
+                      const searchLower = historySearchTerm.toLowerCase();
+                      return (
+                        item.locationContext?.toLowerCase().includes(searchLower) ||
+                        item.createdBy?.toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .map((item) => (
+                    <div className="relative group/item" key={item.id}>
+                      <button
+                        onClick={() => {
+                          onLoadCoachingHistory(item);
+                          setCoachingReport(item);
+                          setSidebarMode('coaching');
+                          setShowHistory(false);
+                          setHistorySearchTerm('');
+                        }}
+                        className="w-full text-left p-3 border border-white/10 rounded-lg hover:border-blue-500/50 hover:bg-white/5 transition-colors group"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-white text-sm truncate pr-6">
+                            {t.driverCoaching} {item.locationContext ? `- ${item.locationContext}` : ''}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-blue-400 shrink-0 mt-0.5" />
+                        </div>
+                        <div className="flex flex-col gap-0.5 text-[10px] text-white/40">
+                          <div className="flex justify-between items-center">
+                            <span>{new Date(item.timestamp || 0).toLocaleDateString()}</span>
+                            {item.createdBy && <span className="text-blue-400/60">{t.by}: {item.createdBy}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  ))
+                )
               )}
             </div>
           </div>

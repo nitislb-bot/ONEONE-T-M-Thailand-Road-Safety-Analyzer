@@ -7,8 +7,8 @@ import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'rea
 import { Sidebar } from './components/Sidebar';
 import { MapComponent } from './components/MapComponent';
 import { AboutUs } from './components/AboutUs';
-import { SafetyAnalysis, BlackSpot, Accident, JourneySafetyReport } from './services/geminiService';
-import { auth, db, signIn, signOut, analysesCollection, handleFirestoreError, OperationType } from './firebase';
+import { SafetyAnalysis, BlackSpot, Accident, JourneySafetyReport, DriverCoachingReport } from './services/geminiService';
+import { auth, db, signIn, signOut, analysesCollection, journeyPlansCollection, coachingReportsCollection, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { onSnapshot, query, orderBy, limit, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { LogIn, LogOut, ShieldAlert, RefreshCw, Info, Languages, MapPin } from 'lucide-react';
@@ -79,6 +79,8 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [analysis, setAnalysis] = useState<SafetyAnalysis | null>(null);
   const [history, setHistory] = useState<SafetyAnalysis[]>([]);
+  const [journeyHistory, setJourneyHistory] = useState<JourneySafetyReport[]>([]);
+  const [coachingHistory, setCoachingHistory] = useState<DriverCoachingReport[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<{ lat: number, lng: number } | null>(null);
   const [view, setView] = useState<'map' | 'about'>('map');
   const [locale, setLocale] = useState<Locale>('th');
@@ -123,7 +125,29 @@ export default function App() {
       handleFirestoreError(error, OperationType.LIST, 'analyses');
     });
 
-    return () => unsubscribe();
+    const qJourney = query(journeyPlansCollection, orderBy('timestamp', 'desc'), limit(100));
+    const unsubscribeJourney = onSnapshot(qJourney, (snapshot) => {
+      const newHistory = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as JourneySafetyReport[];
+      setJourneyHistory(newHistory);
+    });
+
+    const qCoaching = query(coachingReportsCollection, orderBy('timestamp', 'desc'), limit(100));
+    const unsubscribeCoaching = onSnapshot(qCoaching, (snapshot) => {
+      const newHistory = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as DriverCoachingReport[];
+      setCoachingHistory(newHistory);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeJourney();
+      unsubscribeCoaching();
+    };
   }, [isAuthReady, user, analysis?.id]);
 
   const handleAnalysisComplete = async (result: SafetyAnalysis) => {
@@ -145,6 +169,41 @@ export default function App() {
       setActiveTab('map');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `analyses/${id}`);
+    }
+  };
+
+  const handleJourneyPlanComplete = async (plan: JourneySafetyReport) => {
+    if (!user) return;
+    const id = Date.now().toString();
+    const newPlan: JourneySafetyReport = {
+      ...plan,
+      id,
+      timestamp: Date.now(),
+      createdBy: user.displayName || user.email || 'Unknown'
+    };
+    try {
+      await setDoc(doc(db, 'journey_plans', id), newPlan);
+      setJourneyPlan(newPlan);
+      setActiveTab('map');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `journey_plans/${id}`);
+    }
+  };
+
+  const handleCoachingReportComplete = async (report: DriverCoachingReport) => {
+    if (!user) return;
+    const id = Date.now().toString();
+    const newReport: DriverCoachingReport = {
+      ...report,
+      id,
+      timestamp: Date.now(),
+      createdBy: user.displayName || user.email || 'Unknown',
+      locationContext: analysis?.workOrderName || analysis?.district || 'Unknown Location'
+    };
+    try {
+      await setDoc(doc(db, 'coaching_reports', id), newReport);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `coaching_reports/${id}`);
     }
   };
 
@@ -328,7 +387,16 @@ export default function App() {
             analysis={analysis}
             onAnalysisComplete={handleAnalysisComplete} 
             history={history}
+            journeyHistory={journeyHistory}
+            coachingHistory={coachingHistory}
             onLoadHistory={handleLoadHistory}
+            onLoadJourneyHistory={(item) => {
+              setJourneyPlan(item);
+              setActiveTab('map');
+            }}
+            onLoadCoachingHistory={(item) => {
+              // Sidebar state will handle viewing this
+            }}
             onPointClick={handlePointClick}
             onDeleteAnalysis={handleDeleteAnalysis}
             user={user}
@@ -338,10 +406,8 @@ export default function App() {
             setLocale={setLocale}
             requestedAccident={requestedAccident}
             clearRequestedAccident={() => setRequestedAccident(null)}
-            onJourneyPlanComplete={(plan: JourneySafetyReport) => {
-              setJourneyPlan(plan);
-              setActiveTab('map');
-            }}
+            onJourneyPlanComplete={handleJourneyPlanComplete}
+            onCoachingReportComplete={handleCoachingReportComplete}
           />
         </div>
         

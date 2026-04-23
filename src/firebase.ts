@@ -30,6 +30,8 @@ export const signOut = () => auth.signOut();
 
 // Firestore helpers
 export const analysesCollection = collection(db, 'analyses');
+export const journeyPlansCollection = collection(db, 'journey_plans');
+export const coachingReportsCollection = collection(db, 'coaching_reports');
 
 export enum OperationType {
   CREATE = 'create',

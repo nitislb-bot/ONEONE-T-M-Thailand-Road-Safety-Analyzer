@@ -215,6 +215,9 @@ export async function analyzeAccidentTrends(
 }
 
 export interface JourneySafetyReport {
+  id?: string;
+  timestamp?: number;
+  createdBy?: string;
   origin: string;
   destination: string;
   routeSummary: string;
@@ -235,6 +238,10 @@ export interface CoachingModule {
 }
 
 export interface DriverCoachingReport {
+  id?: string;
+  timestamp?: number;
+  createdBy?: string;
+  locationContext?: string;
   summary: string;
   riskProfile: string;
   modules: CoachingModule[];

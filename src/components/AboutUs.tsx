@@ -17,7 +17,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ onBack, locale }) => {
         <button 
           onClick={onBack}
           className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white"
-          title="Back to Map"
+          title={t.backToMap}
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
@@ -79,18 +79,18 @@ export const AboutUs: React.FC<AboutUsProps> = ({ onBack, locale }) => {
             <h2 className="text-xl font-bold uppercase tracking-wider">{t.theCompany}</h2>
           </div>
           <div className="glass-dark p-8 rounded-3xl border border-white/10">
-            <h3 className="text-2xl font-bold mb-4">Road Safety AI Solutions</h3>
+            <h3 className="text-2xl font-bold mb-4">{t.solutions}</h3>
             <p className="text-white/70 mb-6 leading-relaxed">
               {t.companyDesc}
             </p>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm text-white/50">
                 <MapPin className="w-4 h-4" />
-                Bangkok, Thailand
+                {t.locationTH}
               </div>
               <div className="flex items-center gap-2 text-sm text-white/50">
                 <ExternalLink className="w-4 h-4" />
-                www.thairsc.com (Data Partner)
+                www.thairsc.com ({t.dataPartner})
               </div>
             </div>
           </div>
@@ -120,8 +120,8 @@ export const AboutUs: React.FC<AboutUsProps> = ({ onBack, locale }) => {
                 <Globe className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-sm text-white/50 font-medium">Region</div>
-                <div className="text-lg font-bold">Thailand (National)</div>
+                <div className="text-sm text-white/50 font-medium">{t.region}</div>
+                <div className="text-lg font-bold">{t.regionNational}</div>
               </div>
             </div>
           </div>

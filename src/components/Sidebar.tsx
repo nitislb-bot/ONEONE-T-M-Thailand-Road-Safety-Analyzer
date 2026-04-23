@@ -292,14 +292,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'area' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
         >
           <MapPin className="w-4 h-4" />
-          Area Analysis
+          {t.areaAnalysis}
         </button>
         <button
           onClick={() => setSidebarMode('journey')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'journey' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
         >
           <Route className="w-4 h-4" />
-          Journey Plan
+          {t.journeyPlan}
         </button>
         <button
           onClick={() => setSidebarMode('coaching')}
@@ -352,7 +352,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between mb-1 md:mb-2">
           <div className="flex items-center gap-2 md:gap-3">
             <ShieldCheck className="w-6 h-6 md:w-8 md:h-8 text-blue-500 print:text-gray-900" />
-            <h1 className="text-lg md:text-xl font-bold text-white leading-tight">Road Safety Analyzer</h1>
+            <h1 className="text-lg md:text-xl font-bold text-white leading-tight">{t.roadSafetyAnalyzer}</h1>
           </div>
           <button 
             onClick={() => setShowHistory(!showHistory)}
@@ -364,14 +364,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <History className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-xs md:text-sm text-white/50 mt-1 md:mt-2 print:text-gray-800">Evaluate and alert company drivers about travel risks.</p>
+        <p className="text-xs md:text-sm text-white/50 mt-1 md:mt-2 print:text-gray-800">{t.evaluateIntro}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto print:overflow-visible">
         {showHistory ? (
           <div className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Analysis History</h2>
+              <h2 className="text-lg font-semibold text-white">{t.historyTitle}</h2>
               <button 
                 onClick={() => {
                   setShowHistory(false);
@@ -379,7 +379,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="text-sm text-blue-400 hover:text-blue-300"
               >
-                Back to Form
+                {t.backToForm}
               </button>
             </div>
 
@@ -387,7 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
               <input
                 type="text"
-                placeholder="Search history (Name, Province, District...)"
+                placeholder={t.searchHistoryPlaceholder}
                 value={historySearchTerm}
                 onChange={(e) => setHistorySearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-white placeholder:text-white/30"
@@ -491,7 +491,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="space-y-6">
                 <form onSubmit={handleGenerateJourneyPlan} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-white/70 mb-1">Origin</label>
+                    <label className="block text-sm font-medium text-white/70 mb-1">{t.origin}</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
                       <input
@@ -504,7 +504,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-white/70 mb-1">Destination</label>
+                    <label className="block text-sm font-medium text-white/70 mb-1">{t.destination}</label>
                     <div className="relative">
                       <Navigation className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
                       <input
@@ -522,9 +522,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isGeneratingJourney ? (
-                      <><Loader2 className="w-5 h-5 animate-spin" /> Assessing Route...</>
+                      <><Loader2 className="w-5 h-5 animate-spin" /> {t.assessingRoute}</>
                     ) : (
-                      <><ShieldCheck className="w-5 h-5" /> Generate Journey Plan</>
+                      <><ShieldCheck className="w-5 h-5" /> {t.generateJourneyPlan}</>
                     )}
                   </button>
                 </form>
@@ -533,7 +533,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className={`p-4 rounded-xl border ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-900/20 border-red-800' : 'bg-blue-900/20 border-blue-800'}`}>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">Route Safety</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t.routeSafety}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
                           {journeyReport.overallSafetyRating}
                         </span>
@@ -544,7 +544,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-2">
                       <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
                         <Wind className="w-3.5 h-3.5" />
-                        Real-Time Alerts
+                        {t.realTimeAlerts}
                       </h4>
                       {journeyReport.weatherAlerts.map((alert, i) => (
                         <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/10">
@@ -562,7 +562,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-2">
                       <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
                         <Car className="w-3.5 h-3.5" />
-                        Traffic Conditions
+                        {t.trafficConditions}
                       </h4>
                       {journeyReport.trafficConditions.map((traffic, i) => (
                         <div key={i} className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
@@ -576,7 +576,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     <div className="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl">
-                      <h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Dispatcher's Advice</h4>
+                      <h4 className="text-xs font-bold text-blue-400 uppercase mb-2">{t.dispatchersAdvice}</h4>
                       <p className="text-sm text-blue-100 leading-relaxed italic">"{journeyReport.adviseForDriver}"</p>
                     </div>
                   </div>
@@ -587,33 +587,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {!coachingReport && !isGeneratingCoaching ? (
                   <div className="text-center py-12 px-4 border border-dashed border-white/10 rounded-xl bg-white/5">
                     <GraduationCap className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold mb-2">{t.driverCoaching || 'Driver Coaching'}</h3>
-                    <p className="text-sm text-white/50 mb-6 italic">"Turn data into safer habits. Generate a personalized training program based on current analysis."</p>
+                    <h3 className="text-lg font-bold mb-2">{t.driverCoaching}</h3>
+                    <p className="text-sm text-white/50 mb-6 italic">{t.coachingMotivation}</p>
                     <button
                       onClick={handleGenerateCoaching}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
                     >
                       <ShieldCheck className="w-5 h-5" />
-                      {t.getCoaching || 'Generate Coaching Program'}
+                      {t.getCoaching}
                     </button>
                   </div>
                 ) : isGeneratingCoaching ? (
                   <div className="text-center py-20">
                     <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
-                    <p className="text-sm text-white/60 animate-pulse">{t.generatingCoaching || 'Developing Coaching Program...'}</p>
-                    <p className="text-[10px] text-white/30 mt-2">Tailoring modules to specific local risks...</p>
+                    <p className="text-sm text-white/60 animate-pulse">{t.generatingCoaching}</p>
                   </div>
                 ) : coachingReport && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-2xl">
                       <div className="flex items-center gap-2 mb-3">
                         <Lightbulb className="w-5 h-5 text-yellow-400" />
-                        <h3 className="font-bold text-blue-100">{t.coachingSummary || 'Coaching Summary'}</h3>
+                        <h3 className="font-bold text-blue-100">{t.coachingSummary}</h3>
                       </div>
                       <p className="text-sm text-blue-100/80 leading-relaxed mb-4 italic">"{coachingReport.summary}"</p>
                       
                       <div className="pt-4 border-t border-blue-500/20">
-                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{t.riskProfile || 'Your Risk Profile'}</h4>
+                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{t.riskProfile}</h4>
                         <p className="text-xs text-blue-100/70">{coachingReport.riskProfile}</p>
                       </div>
                     </div>
@@ -621,7 +620,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-4">
                       <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest px-1 flex items-center gap-2">
                         <Route className="w-4 h-4" />
-                        {t.coachingModules || 'Training Modules'}
+                        {t.coachingModules}
                       </h3>
                       {coachingReport.modules.map((module, i) => (
                         <div key={i} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-blue-500/30 transition-colors">
@@ -633,7 +632,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                           <div className="p-4 space-y-4">
                             <div className="space-y-2">
-                              <h5 className="text-[10px] font-bold text-white/30 uppercase">Coaching Tips</h5>
+                              <h5 className="text-[10px] font-bold text-white/30 uppercase">{t.coachingTips}</h5>
                               <ul className="space-y-2">
                                 {module.tips.map((tip, ti) => (
                                   <li key={ti} className="flex gap-2 text-xs text-white/80">
@@ -645,7 +644,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </div>
                             
                             <div className="space-y-2">
-                              <h5 className="text-[10px] font-bold text-white/30 uppercase">{t.trainingSteps || 'Training Steps'}</h5>
+                              <h5 className="text-[10px] font-bold text-white/30 uppercase">{t.trainingSteps}</h5>
                               <div className="space-y-1.5">
                                 {module.trainingSteps.map((step, si) => (
                                   <div key={si} className="text-[11px] text-white/60 bg-white/5 px-2 py-1 rounded">
@@ -657,7 +656,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                             <div className="pt-3 border-t border-white/5">
                               <p className="text-[10px] italic text-blue-400/70">
-                                <strong>{t.riskRelation || 'Why this matters:'}</strong> {module.riskRelation}
+                                <strong>{t.riskRelation}</strong> {module.riskRelation}
                               </p>
                             </div>
                           </div>
@@ -668,7 +667,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="bg-green-900/10 border border-green-800/30 p-5 rounded-2xl">
                       <div className="flex items-center gap-2 mb-3">
                         <ClipboardCheck className="w-5 h-5 text-green-400" />
-                        <h3 className="font-bold text-green-100">{t.preTripChecklist || 'Pre-Trip Safety Checklist'}</h3>
+                        <h3 className="font-bold text-green-100">{t.preTripChecklist}</h3>
                       </div>
                       <ul className="space-y-3">
                         {coachingReport.personalizedChecklist.map((item, i) => (
@@ -952,7 +951,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <div>
-                <h2 className="text-lg font-semibold text-white mb-3">Area Safety Points ({analysis.blackSpots.length})</h2>
+                <h2 className="text-lg font-semibold text-white mb-3">{t.areaSafetyPoints} ({analysis.blackSpots.length})</h2>
                 <div className="space-y-4">
                   {analysis.blackSpots.map((spot, idx) => (
                     <div 
@@ -966,7 +965,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {spot.confirmations ? (
                             <div className="flex items-center gap-1 text-[10px] text-blue-400 font-bold mt-0.5">
                               <ThumbsUp className="w-2.5 h-2.5" />
-                              {spot.confirmations} Verified
+                              {spot.confirmations} {t.verified}
                             </div>
                           ) : null}
                         </div>
@@ -977,21 +976,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       
                       <div className="grid grid-cols-3 gap-2 mt-3 mb-2 text-center">
                         <div className="bg-white/5 border border-white/10 p-1.5 rounded-md">
-                          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Accidents</div>
+                          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">{t.accidents}</div>
                           <div className="font-bold text-white">{spot.accidentCount}</div>
                         </div>
                         <div className="bg-orange-900/20 border border-orange-800/30 p-1.5 rounded-md">
-                          <div className="text-[10px] uppercase tracking-wider text-orange-400 font-semibold">Injuries</div>
+                          <div className="text-[10px] uppercase tracking-wider text-orange-400 font-semibold">{t.injuries}</div>
                           <div className="font-bold text-orange-300">{spot.injuryCount}</div>
                         </div>
                         <div className="bg-red-900/20 border border-red-800/30 p-1.5 rounded-md">
-                          <div className="text-[10px] uppercase tracking-wider text-red-400 font-semibold">Fatalities</div>
+                          <div className="text-[10px] uppercase tracking-wider text-red-400 font-semibold">{t.fatalities}</div>
                           <div className="font-bold text-red-300">{spot.fatalityCount}</div>
                         </div>
                       </div>
                       
                       <div className="mt-3">
-                        <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1">Risk Factors</h4>
+                        <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1">{t.riskFactorsLabel}</h4>
                         <ul className="list-disc list-inside text-sm text-white/80 space-y-0.5">
                           {spot.riskFactors.map((factor, i) => (
                             <li key={i}>{factor}</li>
@@ -1000,7 +999,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                       
                       <div className="mt-3 bg-blue-900/20 p-3 rounded-md border border-blue-800/30">
-                        <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Actionable Advice</h4>
+                        <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">{t.actionableAdvice}</h4>
                         <p className="text-sm text-blue-200">{spot.recommendation}</p>
                       </div>
                     </div>
@@ -1013,7 +1012,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-red-500" />
-                      Recent Accidents ({analysis.recentAccidents.length})
+                      {t.recentAccidents} ({analysis.recentAccidents.length})
                     </h2>
                     <button
                       onClick={() => handleGenerateDetailedReport()}
@@ -1025,21 +1024,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ) : (
                         <ExternalLink className="w-3 h-3" />
                       )}
-                      AI More Detail
+                      {t.aiMoreDetail}
                     </button>
                   </div>
                   <div className="space-y-4">
                     {severityStats && (
                       <div className="bg-white/5 border border-white/10 rounded-lg p-3 overflow-hidden">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Severity Mix</h4>
+                          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.severityMix}</h4>
                           <button 
                             onClick={handleGenerateTrendAnalysis}
                             disabled={isGeneratingTrends}
                             className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50"
                           >
                             {isGeneratingTrends ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <BarChart3 className="w-2.5 h-2.5" />}
-                            Run AI Trend Analysis
+                            {t.runTrendAnalysis}
                           </button>
                         </div>
                         <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-2">
@@ -1052,7 +1051,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           })}
                         </div>
                         <div className="flex justify-between text-[10px]">
-                          <span className="text-red-400 font-bold">Fatal: {severityStats.Fatal}</span>
+                          <span className="text-red-400 font-bold">{t.fatalities}: {severityStats.Fatal}</span>
                           <span className="text-orange-400 font-bold">Major: {severityStats.Major}</span>
                           <span className="text-yellow-400 font-bold">Minor: {severityStats.Minor}</span>
                         </div>
@@ -1070,7 +1069,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             {acc.confirmations ? (
                               <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold mt-0.5">
                                 <ThumbsUp className="w-2.5 h-2.5" />
-                                {acc.confirmations} Verified
+                                {acc.confirmations} {t.verified}
                               </div>
                             ) : null}
                           </div>
@@ -1084,7 +1083,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         <p className="text-sm text-white/70 italic mb-3">"{acc.description}"</p>
                         <div className="flex items-center justify-between">
-                          <div className="text-xs font-semibold text-white/40 uppercase tracking-wider">Type: {acc.type}</div>
+                          <div className="text-xs font-semibold text-white/40 uppercase tracking-wider">{t.type}: {acc.type}</div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1094,7 +1093,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-400 hover:bg-red-900/30 border border-red-800/30 rounded transition-all disabled:opacity-50"
                           >
                             <Info className="w-3 h-3" />
-                            Case Detail
+                            {t.caseDetail}
                           </button>
                         </div>
                       </div>
@@ -1116,17 +1115,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="bg-[#0f0f0f] w-full max-w-sm rounded-xl shadow-2xl p-6 border border-white/10 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 text-red-500 mb-4">
               <AlertTriangle className="w-6 h-6" />
-              <h3 className="text-lg font-bold text-white">Delete Analysis?</h3>
+              <h3 className="text-lg font-bold text-white">{t.deleteAnalysisTitle}</h3>
             </div>
             <p className="text-white/60 mb-6 leading-relaxed">
-              Are you sure you want to delete this analysis from the shared history? This action cannot be undone.
+              {t.deleteAnalysisConfirm}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
                 className="flex-1 px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={() => {
@@ -1135,7 +1134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className="flex-1 px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
               >
-                Delete
+                {t.delete}
               </button>
             </div>
           </div>

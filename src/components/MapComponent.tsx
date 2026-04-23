@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { motion, AnimatePresence } from 'motion/react';
 import { BlackSpot, Accident, JourneySafetyReport } from '../services/geminiService';
 import { PlusCircle, AlertCircle, MapPin, Navigation, Info, X, Edit2, Save, Trash2, AlertTriangle, Move, MessageSquare, ThumbsUp, Send, ChevronDown, ChevronUp, Route, Wind } from 'lucide-react';
 
@@ -36,21 +37,27 @@ const getRiskColor = (risk: string) => {
 };
 
 const iconCache: Record<string, L.DivIcon> = {};
-const getCachedIcon = (color: string, isAccident = false) => {
-  const key = `${color}-${isAccident}`;
+const getCachedIcon = (color: string, isAccident = false, isSelected = false) => {
+  const isMobile = window.innerWidth < 768;
+  const key = `${color}-${isAccident}-${isSelected}-${isMobile}`;
   if (!iconCache[key]) {
-    // Larger touch targets for mobile (at least 36px)
-    const isMobile = window.innerWidth < 768;
+    // Even larger touch targets for mobile (at least 44px)
     const baseSize = isAccident ? 32 : 24;
-    const size = isMobile ? baseSize * 1.5 : baseSize;
-    // Increase hit area with transparent padding
-    const hitAreaSize = size + (isMobile ? 16 : 8);
+    const size = isMobile ? baseSize * 1.6 : baseSize;
+    // Increase hit area significantly with transparent padding
+    const hitAreaSize = size + (isMobile ? 32 : 12);
+    
+    // Add pulse effect for critical spots or accidents if selected
+    const pulseAnim = (isSelected || (color === '#ef4444' && isMobile)) 
+      ? 'animation: marker-pulse 2s infinite;' 
+      : '';
     
     iconCache[key] = L.divIcon({
       className: 'custom-icon',
       html: `<div style="width: ${hitAreaSize}px; height: ${hitAreaSize}px; display: flex; align-items: center; justify-content: center; background: transparent;">
-        <div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50%; border: ${isMobile ? '3px' : '2px'} solid ${isMobile ? '#1e293b' : 'white'}; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center;">
-          ${isAccident ? `<span style="color: white; font-weight: bold; font-size: ${isMobile ? '22px' : '16px'}; line-height: 1;">!</span>` : ''}
+        <div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50%; border: ${isSelected ? '4px' : (isMobile ? '3px' : '2px')} solid ${isSelected ? '#3b82f6' : (isMobile ? '#1e293b' : 'white')}; box-shadow: ${isSelected ? '0 0 20px rgba(59, 130, 246, 0.6)' : '0 4px 12px rgba(0,0,0,0.3)'}; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); ${pulseAnim}">
+          ${isAccident ? `<span style="color: white; font-weight: bold; font-size: ${isMobile ? '24px' : '16px'}; line-height: 1;">!</span>` : ''}
+          ${isSelected ? `<div style="position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>` : ''}
         </div>
       </div>`,
       iconSize: [hitAreaSize, hitAreaSize],
@@ -73,10 +80,14 @@ const RiskSpotMarker = React.memo(({
   setEditForm, 
   setDeleteConfirmSpot,
   onHideUi,
+  activePoint,
+  setActivePoint,
   locale, 
   t 
 }: any) => {
   const [isMinimized, setIsMinimized] = useState(false);
+  const isSelected = activePoint?.originalIndex === spot.originalIndex && activePoint?.riskLevel !== undefined;
+  
   const hasPoorLighting = spot.riskFactors.some((f: string) => 
     f.toLowerCase().includes('lighting') || 
     f.toLowerCase().includes('dark') || 
@@ -93,7 +104,7 @@ const RiskSpotMarker = React.memo(({
       {hasSharpCurves && (
         <Polyline 
           positions={generateCurvePoints(spot.latitude, spot.longitude)}
-          pathOptions={{ color: '#ef4444', weight: 3, dashArray: '5, 10' }}
+          pathOptions={{ color: '#ef4444', weight: 4, dashArray: '5, 10', opacity: isSelected ? 0.8 : 0.4 }}
         />
       )}
       {hasPoorLighting && (
@@ -102,20 +113,22 @@ const RiskSpotMarker = React.memo(({
           radius={50}
           pathOptions={{ 
             fillColor: '#a855f7', 
-            fillOpacity: 0.15, 
+            fillOpacity: isSelected ? 0.3 : 0.15, 
             color: '#9333ea', 
-            weight: 1,
-            dashArray: '15, 5'
+            weight: 2,
+            dashArray: '15, 5',
+            opacity: isSelected ? 0.8 : 0.4
           }}
         />
       )}
       <Marker
         position={[spot.latitude, spot.longitude]}
-        icon={getCachedIcon(getMarkerColor(spot.riskLevel))}
+        icon={getCachedIcon(getMarkerColor(spot.riskLevel), false, isSelected)}
         draggable={true}
         bubblingMouseEvents={false}
         eventHandlers={{
           click: () => {
+            setActivePoint(spot);
             if (window.innerWidth < 768) {
               onHideUi();
             }
@@ -126,10 +139,18 @@ const RiskSpotMarker = React.memo(({
             onUpdateSpot(spot.originalIndex, { ...spot, latitude: position.lat, longitude: position.lng });
           },
         }}
-      >
-        <Popup minWidth={240} autoPanPadding={[20, 20]}>
-          {editingSpotIndex === spot.originalIndex && editForm ? (
-            <div className="p-3 min-w-[280px] max-w-sm bg-white rounded-lg shadow-sm">
+      />
+      
+      {/* Separate Popup logic to avoid touch conflicts on mobile */}
+      {(editingSpotIndex === spot.originalIndex || window.innerWidth >= 768) && (
+        <Marker 
+          position={[spot.latitude, spot.longitude]} 
+          icon={L.divIcon({ className: 'hidden' })}
+          interactive={false}
+        >
+          <Popup minWidth={280} autoPanPadding={[20, 20]} className={editingSpotIndex === spot.originalIndex ? "editing-popup" : "viewing-popup"}>
+            {editingSpotIndex === spot.originalIndex && editForm ? (
+              <div className="p-3 min-w-[280px] max-w-sm bg-white rounded-lg shadow-sm">
               <div className="flex items-center justify-between mb-3 border-b pb-2">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-blue-600" />
@@ -158,10 +179,10 @@ const RiskSpotMarker = React.memo(({
                     value={editForm.riskLevel}
                     onChange={(e) => setEditForm({ ...editForm, riskLevel: e.target.value as any })}
                   >
-                    <option value="Low">{locale === 'en' ? 'Low' : 'ต่ำ'}</option>
-                    <option value="Medium">{locale === 'en' ? 'Medium' : 'ปานกลาง'}</option>
-                    <option value="High">{locale === 'en' ? 'High' : 'สูง'}</option>
-                    <option value="Critical">{locale === 'en' ? 'Critical' : 'วิกฤต'}</option>
+                    <option value="Low">{t.low}</option>
+                    <option value="Medium">{t.medium}</option>
+                    <option value="High">{t.high}</option>
+                    <option value="Critical">{t.critical}</option>
                   </select>
                 </div>
 
@@ -188,7 +209,7 @@ const RiskSpotMarker = React.memo(({
                             setEditForm({ ...editForm, riskFactors: newFactors });
                           }}
                           className="p-1 text-red-500 hover:bg-red-100 rounded transition-colors"
-                          title="Remove factor"
+                          title={t.removeFactor}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -200,7 +221,7 @@ const RiskSpotMarker = React.memo(({
                       className="w-full py-1.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 border border-dashed border-blue-300 rounded flex items-center justify-center gap-1 transition-colors"
                     >
                       <PlusCircle className="w-3 h-3" />
-                      {locale === 'en' ? 'Add New Factor' : 'เพิ่มปัจจัยความเสี่ยง'}
+                      {t.addNewFactor}
                     </button>
                   </div>
                 </div>
@@ -325,6 +346,7 @@ const RiskSpotMarker = React.memo(({
           )}
         </Popup>
       </Marker>
+    )}
     </React.Fragment>
   );
 });
@@ -336,31 +358,45 @@ const AccidentMarker = React.memo(({
   setDeleteConfirmAccident,
   onRequestDetailedReport,
   onHideUi,
+  activePoint,
+  setActivePoint,
   locale, 
   t 
 }: any) => {
   const [isMinimized, setIsMinimized] = useState(false);
+  const isSelected = activePoint?.originalIndex === acc.originalIndex && activePoint?.severity !== undefined;
+
   return (
-    <Marker
-      position={[acc.latitude, acc.longitude]}
-      icon={getCachedIcon('#ef4444', true)}
-      draggable={true}
-      bubblingMouseEvents={false}
-      eventHandlers={{
-        click: () => {
-          if (window.innerWidth < 768) {
-            onHideUi();
-          }
-        },
-        dragend: (e) => {
-          const marker = e.target;
-          const position = marker.getLatLng();
-          onUpdateAccident(acc.originalIndex, { ...acc, latitude: position.lat, longitude: position.lng });
-        },
-      }}
-    >
-      <Popup minWidth={240} autoPanPadding={[20, 20]}>
-        <div className="p-2">
+    <React.Fragment>
+      <Marker
+        position={[acc.latitude, acc.longitude]}
+        icon={getCachedIcon('#ef4444', true, isSelected)}
+        draggable={true}
+        bubblingMouseEvents={false}
+        eventHandlers={{
+          click: () => {
+            setActivePoint(acc);
+            if (window.innerWidth < 768) {
+              onHideUi();
+            }
+          },
+          dragend: (e) => {
+            const marker = e.target;
+            const position = marker.getLatLng();
+            onUpdateAccident(acc.originalIndex, { ...acc, latitude: position.lat, longitude: position.lng });
+          },
+        }}
+      />
+      
+      {/* Separate Popup logic for desktop only as mobile uses detail card */}
+      {window.innerWidth >= 768 && (
+        <Marker 
+          position={[acc.latitude, acc.longitude]} 
+          icon={L.divIcon({ className: 'hidden' })}
+          interactive={false}
+        >
+          <Popup minWidth={240} autoPanPadding={[20, 20]}>
+            <div className="p-2">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-600" />
@@ -399,7 +435,7 @@ const AccidentMarker = React.memo(({
               
               <div className="bg-red-50 p-2.5 rounded-lg border border-red-100 mb-3">
                 <p className="text-sm text-slate-700 leading-relaxed font-bold mb-1">
-                  AI Summary:
+                  {t.aiSummary}
                 </p>
                 <p className="text-xs text-slate-600 leading-relaxed italic mb-3">
                   "{acc.aiSummary || acc.description}"
@@ -407,7 +443,7 @@ const AccidentMarker = React.memo(({
                 <div className="bg-white p-2 rounded border border-red-200 shadow-sm">
                   <p className="text-[10px] text-red-600 font-bold uppercase mb-1 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    How to Avoid:
+                    {t.howToAvoid}
                   </p>
                   <p className="text-xs text-slate-800 font-medium leading-tight">
                     {acc.avoidanceTip || (locale === 'en' ? 'Drive with extreme caution and maintain safe speed.' : 'ขับขี่ด้วยความระมัดระวังอย่างยิ่งและรักษาความเร็วที่ปลอดภัย')}
@@ -443,13 +479,15 @@ const AccidentMarker = React.memo(({
                 className="w-full mt-3 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md"
               >
                 <AlertCircle className="w-4 h-4" />
-                {locale === 'en' ? 'AI Case Detail' : 'รายละเอียดย้อนหลัง AI'}
+                {t.aiCaseDetail}
               </button>
             </div>
           )}
         </div>
       </Popup>
     </Marker>
+  )}
+  </React.Fragment>
   );
 });
 
@@ -560,7 +598,8 @@ const MapController: React.FC<{
   blackSpots: BlackSpot[];
   recentAccidents: Accident[];
   journeyPlan?: JourneySafetyReport | null;
-}> = ({ selectedPoint, blackSpots, recentAccidents, journeyPlan }) => {
+  activePoint: any | null;
+}> = ({ selectedPoint, blackSpots, recentAccidents, journeyPlan, activePoint }) => {
   const map = useMap();
 
   // Handle flyTo when a point is selected from sidebar
@@ -572,6 +611,31 @@ const MapController: React.FC<{
       });
     }
   }, [selectedPoint, map]);
+
+  // Handle smooth panning to active marker on click
+  useEffect(() => {
+    if (activePoint && ('latitude' in activePoint)) {
+      const isMobile = window.innerWidth < 768;
+      const zoom = map.getZoom();
+      
+      // Calculate a target center that accounts for the mobile card
+      // Shifting the view so the marker is in the top 40% of the screen
+      if (isMobile) {
+        map.flyTo([activePoint.latitude, activePoint.longitude], Math.max(zoom, 15), {
+          duration: 0.8
+        });
+        
+        // Wait for fly to finish then pan slightly for better framing
+        setTimeout(() => {
+          map.panBy([0, -80], { animate: true });
+        }, 850);
+      } else {
+        map.flyTo([activePoint.latitude, activePoint.longitude], Math.max(zoom, 14), {
+          duration: 0.8
+        });
+      }
+    }
+  }, [activePoint, map]);
 
   // Automatically fit bounds when data changes
   useEffect(() => {
@@ -600,8 +664,9 @@ const MapClickHandler: React.FC<{
   isSimulateMode: boolean,
   onToggleUi: () => void,
   onHideUi: () => void,
-  isUiHidden: boolean
-}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode, onToggleUi, onHideUi, isUiHidden }) => {
+  isUiHidden: boolean,
+  setActivePoint: (v: any) => void
+}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode, onToggleUi, onHideUi, isUiHidden, setActivePoint }) => {
   useMapEvents({
     click(e) {
       // Check if original event target is the map container itself or a tile
@@ -612,6 +677,8 @@ const MapClickHandler: React.FC<{
       
       if (!isMapBackground) return;
 
+      setActivePoint(null);
+      
       if (isAddMode) {
         onAddSpot(e.latlng);
         setIsAddMode(false);
@@ -658,6 +725,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [deleteConfirmAccident, setDeleteConfirmAccident] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<L.LatLng | null>(null);
   const [activeAlert, setActiveAlert] = useState<Accident | BlackSpot | null>(null);
+  const [activePoint, setActivePoint] = useState<any | null>(null);
   const [editingSpotIndex, setEditingSpotIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<BlackSpot | null>(null);
   const [isUiHidden, setIsUiHidden] = useState(false);
@@ -738,15 +806,15 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   const handleAddSpot = (latlng: L.LatLng) => {
     const newSpot: BlackSpot = {
-      locationName: 'New High Risk Location',
+      locationName: locale === 'en' ? 'New High Risk Location' : 'จุดเสี่ยงอันตรายใหม่',
       latitude: latlng.lat,
       longitude: latlng.lng,
       riskLevel: 'High',
       accidentCount: 0,
       injuryCount: 0,
       fatalityCount: 0,
-      riskFactors: ['User added location'],
-      recommendation: 'Please investigate this area.'
+      riskFactors: [locale === 'en' ? 'User added location' : 'ตำแหน่งที่ผู้ใช้เพิ่ม'],
+      recommendation: locale === 'en' ? 'Please investigate this area.' : 'โปรดตรวจสอบประเมินพื้นที่นี้'
     };
     onAddSpot(newSpot);
   };
@@ -775,6 +843,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           onToggleUi={() => setIsUiHidden(prev => !prev)}
           onHideUi={() => setIsUiHidden(true)}
           isUiHidden={isUiHidden}
+          setActivePoint={setActivePoint}
         />
         
         {/* User Location Marker */}
@@ -805,6 +874,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             setEditForm={setEditForm}
             setDeleteConfirmSpot={setDeleteConfirmSpot}
             onHideUi={() => setIsUiHidden(true)}
+            activePoint={activePoint}
+            setActivePoint={setActivePoint}
             locale={locale}
             t={t}
           />
@@ -820,6 +891,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             setDeleteConfirmAccident={setDeleteConfirmAccident}
             onRequestDetailedReport={onRequestDetailedReport}
             onHideUi={() => setIsUiHidden(true)}
+            activePoint={activePoint}
+            setActivePoint={setActivePoint}
             locale={locale}
             t={t}
           />
@@ -849,9 +922,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 <div className="bg-purple-50 p-2 rounded border border-purple-100">
                   <div className="flex items-center gap-1.5 text-purple-700 text-xs font-bold uppercase mb-1">
                     <Route className="w-3.5 h-3.5" />
-                    Journey Impact
+                    {t.journeyImpact}
                   </div>
-                  <p className="text-xs text-purple-600 italic">Identified for your path from {journeyPlan.origin} to {journeyPlan.destination}</p>
+                  <p className="text-xs text-purple-600 italic">
+                    {t.pathIdentifiedDesc.replace('{origin}', journeyPlan.origin).replace('{destination}', journeyPlan.destination)}
+                  </p>
                 </div>
               </div>
             </Popup>
@@ -863,8 +938,119 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           blackSpots={blackSpots} 
           recentAccidents={recentAccidents || []}
           journeyPlan={journeyPlan}
+          activePoint={activePoint}
         />
       </MapContainer>
+
+      {/* Mobile Detail Card */}
+      <AnimatePresence>
+        {activePoint && window.innerWidth < 768 && (
+          <motion.div 
+            initial={{ y: 200, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 200, opacity: 0 }}
+            className="absolute bottom-6 left-4 right-4 z-[3000] md:hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`glass-dark rounded-3xl border-2 p-5 shadow-2xl overflow-hidden relative ${
+              'severity' in activePoint ? 'border-red-500/30' : 
+              activePoint.riskLevel === 'Critical' ? 'border-red-500/30' :
+              activePoint.riskLevel === 'High' ? 'border-orange-500/30' :
+              'border-blue-500/30'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {'severity' in activePoint ? (
+                    <div className="p-2 bg-red-500/20 rounded-full">
+                      <AlertCircle className="w-6 h-6 text-red-400" />
+                    </div>
+                  ) : (
+                    <div className={`p-2 rounded-full ${getRiskColor(activePoint.riskLevel)}`}>
+                      <MapPin className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-white text-lg tracking-tight truncate max-w-[200px]">
+                      {activePoint.locationName}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                         'severity' in activePoint ? 'bg-red-500 text-white' :
+                         activePoint.riskLevel === 'Critical' ? 'bg-red-600 text-white' :
+                         activePoint.riskLevel === 'High' ? 'bg-orange-500 text-white' :
+                         'bg-blue-500 text-white'
+                       }`}>
+                         {'severity' in activePoint ? activePoint.severity : activePoint.riskLevel}
+                       </span>
+                       <span className="text-[10px] text-white/50 font-medium">
+                         {activePoint.timestamp || `${activePoint.latitude.toFixed(3)}, ${activePoint.longitude.toFixed(3)}`}
+                       </span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setActivePoint(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/50"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* AI Summary / Desc */}
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center gap-2 text-blue-400 text-[10px] font-bold uppercase tracking-wider mb-2">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {t.aiSummary}
+                  </div>
+                  <p className="text-sm text-white/80 leading-relaxed italic">
+                    "{activePoint.aiSummary || activePoint.description || activePoint.recommendation}"
+                  </p>
+                </div>
+
+                {/* Recommendation / Avoid */}
+                <div className="bg-blue-500/10 rounded-2xl p-4 border border-blue-500/20">
+                   <div className="flex items-center gap-2 text-blue-400 text-[10px] font-bold uppercase tracking-wider mb-2">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {t.howToAvoid}
+                  </div>
+                  <p className="text-sm text-white font-medium leading-relaxed">
+                    {activePoint.avoidanceTip || activePoint.recommendation || (locale === 'en' ? 'Drive with caution.' : 'โปรดขับขี่ด้วยความระมัดระวัง')}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  {'severity' in activePoint && (
+                    <button
+                      onClick={() => {
+                        onRequestDetailedReport(activePoint);
+                        setActivePoint(null);
+                      }}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      {t.aiCaseDetail}
+                    </button>
+                  )}
+                  {'riskLevel' in activePoint && (
+                    <button
+                      onClick={() => {
+                        startEditing(activePoint.originalIndex, activePoint);
+                        setActivePoint(null);
+                        if (window.innerWidth < 768) setIsUiHidden(false);
+                      }}
+                      className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      {t.editLocation}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Proximity Alert Notification */}
       {activeAlert && (
@@ -874,8 +1060,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
               <AlertCircle className="w-8 h-8 text-red-600" />
             </div>
             <div className="flex-1">
-              <h4 className="font-bold text-lg leading-tight">{locale === 'en' ? 'Accident Ahead: Drive with Caution' : 'มีอุบัติเหตุข้างหน้า: โปรดขับรถด้วยความระมัดระวัง'}</h4>
-              <p className="text-sm opacity-90">{locale === 'en' ? 'Approaching' : 'กำลังเข้าสู่'} {activeAlert.locationName}</p>
+              <h4 className="font-bold text-lg leading-tight">{t.accidentAhead}</h4>
+              <p className="text-sm opacity-90">{t.approaching} {activeAlert.locationName}</p>
             </div>
             <button 
               onClick={() => setActiveAlert(null)}
@@ -894,7 +1080,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           className="bg-blue-600 text-white px-6 py-2.5 rounded-full shadow-2xl font-bold flex items-center gap-2 border-2 border-blue-400/50 animate-pulse active:scale-95"
         >
           <Info className="w-4 h-4" />
-          {locale === 'en' ? 'Show Controls' : 'แสดงเครื่องมือ'}
+          {t.showControls}
         </button>
       </div>
 
@@ -912,7 +1098,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             }`}
           >
             <PlusCircle className={`w-5 h-5 ${isAddMode ? 'text-white' : 'text-blue-600'}`} />
-            <span className="hidden sm:inline font-bold tracking-tight">{isAddMode ? (locale === 'en' ? 'Click on map' : 'คลิกบนแผนที่') : (locale === 'en' ? 'Add Risk' : 'เพิ่มจุดเสี่ยง')}</span>
+            <span className="hidden sm:inline font-bold tracking-tight">{isAddMode ? t.clickOnMap : t.addRisk}</span>
           </button>
           
           <button
@@ -927,7 +1113,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             }`}
           >
             <Navigation className={`w-5 h-5 ${isSimulateMode ? 'text-white' : 'text-blue-600'}`} />
-            <span className="hidden sm:inline font-bold tracking-tight">{isSimulateMode ? (locale === 'en' ? 'Click map' : 'คลิกแผนที่') : (locale === 'en' ? 'Simulate' : 'จำลอง')}</span>
+            <span className="hidden sm:inline font-bold tracking-tight">{isSimulateMode ? t.clickMapToSimulate : t.simulate}</span>
           </button>
         </div>
       )}
@@ -956,7 +1142,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             <div className="w-3.5 h-3.5 rounded-full bg-red-600 flex items-center justify-center text-[8px] text-white font-bold shadow-sm">!</div>
             <div className="flex flex-col">
               <span className={`text-[11px] font-medium ${filterType === 'Accident' ? 'text-red-700' : 'text-slate-700'}`}>{t.recentAccident}</span>
-              {filterType === 'Accident' && <span className="text-[9px] text-red-500/70 leading-tight">{locale === 'en' ? 'Recent crashes' : 'รายงานการชนล่าสุด'}</span>}
+              {filterType === 'Accident' && <span className="text-[9px] text-red-500/70 leading-tight">{t.recentCrashes}</span>}
             </div>
           </button>
           
@@ -966,7 +1152,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-3.5 h-3.5 rounded-full bg-red-500"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Critical' ? 'text-red-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Critical' : 'จุดเสี่ยงวีกฤต'}</span>
+              <span className={`text-[11px] font-medium ${filterType === 'Critical' ? 'text-red-700' : 'text-slate-700'}`}>{t.critical}</span>
             </div>
           </button>
 
@@ -976,7 +1162,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-3.5 h-3.5 rounded-full bg-orange-500"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'High' ? 'text-orange-700' : 'text-slate-700'}`}>{locale === 'en' ? 'High Risk' : 'เขตความเสี่ยงสูง'}</span>
+              <span className={`text-[11px] font-medium ${filterType === 'High' ? 'text-orange-700' : 'text-slate-700'}`}>{t.high}</span>
             </div>
           </button>
 
@@ -986,7 +1172,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-yellow-600 bg-yellow-100 rounded-full"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Poor Lighting' ? 'text-yellow-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Lighting' : 'แสงสว่างไม่พอ'}</span>
+              <span className={`text-[11px] font-medium ${filterType === 'Poor Lighting' ? 'text-yellow-700' : 'text-slate-700'}`}>{t.poorLighting}</span>
             </div>
           </button>
 
@@ -996,8 +1182,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-0.5 bg-slate-400"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Sharp Curve' ? 'text-slate-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Sharp Curve' : 'ทางโค้งอันตราย'}</span>
-              {filterType === 'Sharp Curve' && <span className="text-[9px] text-slate-500 leading-tight">{locale === 'en' ? 'Dangerous bends' : 'ทางโค้งที่อันตราย'}</span>}
+              <span className={`text-[11px] font-medium ${filterType === 'Sharp Curve' ? 'text-slate-700' : 'text-slate-700'}`}>{t.sharpCurve}</span>
+              {filterType === 'Sharp Curve' && <span className="text-[9px] text-slate-500 leading-tight">{t.dangerousBends}</span>}
             </div>
           </button>
 
@@ -1007,8 +1193,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border-2 border-orange-500 bg-orange-100 rounded-full"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Construction' ? 'text-orange-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Construction' : 'เขตก่อสร้าง'}</span>
-              {filterType === 'Construction' && <span className="text-[9px] text-orange-500 leading-tight">{locale === 'en' ? 'Active roadwork' : 'มีการก่อสร้างถนน'}</span>}
+              <span className={`text-[11px] font-medium ${filterType === 'Construction' ? 'text-orange-700' : 'text-slate-700'}`}>{t.construction}</span>
+              {filterType === 'Construction' && <span className="text-[9px] text-orange-500 leading-tight">{t.activeRoadwork}</span>}
             </div>
           </button>
 
@@ -1018,8 +1204,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-indigo-500 bg-indigo-50 rounded-full"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Slippery' ? 'text-indigo-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Slippery Road' : 'ถนนลื่น'}</span>
-              {filterType === 'Slippery' && <span className="text-[9px] text-indigo-500 leading-tight">{locale === 'en' ? 'Skid hazards' : 'อันตรายจากการลื่นไถล'}</span>}
+              <span className={`text-[11px] font-medium ${filterType === 'Slippery' ? 'text-indigo-700' : 'text-slate-700'}`}>{t.slipperyRoad}</span>
+              {filterType === 'Slippery' && <span className="text-[9px] text-indigo-500 leading-tight">{t.skidHazards}</span>}
             </div>
           </button>
 
@@ -1029,8 +1215,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           >
             <div className="w-4 h-4 border border-dashed border-purple-500 bg-purple-50 rounded-full"></div>
             <div className="flex flex-col">
-              <span className={`text-[11px] font-medium ${filterType === 'Steep' ? 'text-purple-700' : 'text-slate-700'}`}>{locale === 'en' ? 'Steep Slope' : 'ทางลาดชัน'}</span>
-              {filterType === 'Steep' && <span className="text-[9px] text-purple-500 leading-tight">{locale === 'en' ? 'Danger inclines' : 'ทางลาดหรือทางชัน'}</span>}
+              <span className={`text-[11px] font-medium ${filterType === 'Steep' ? 'text-purple-700' : 'text-slate-700'}`}>{t.steepSlope}</span>
+              {filterType === 'Steep' && <span className="text-[9px] text-purple-500 leading-tight">{t.dangerInclines}</span>}
             </div>
           </button>
         </div>
@@ -1042,10 +1228,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           <div className="bg-white w-full max-w-xs rounded-xl shadow-2xl p-5 border border-slate-200 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 text-red-600 mb-3">
               <AlertTriangle className="w-5 h-5" />
-              <h3 className="font-bold text-slate-900">{locale === 'en' ? 'Remove Record?' : 'ลบบันทึก?'}</h3>
+              <h3 className="font-bold text-slate-900">{t.removeRecord}</h3>
             </div>
             <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-              {locale === 'en' ? 'Are you sure you want to remove this record? This change will be shared with all users.' : 'คุณแน่ใจหรือไม่ว่าต้องการลบบันทึกนี้? การเปลี่ยนแปลงนี้จะถูกแชร์กับผู้ใช้ทุกคน'}
+              {t.removeConfirm}
             </p>
             <div className="flex gap-2">
               <button

@@ -39,16 +39,19 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   render() {
+    const errorLocale = (window.location.search.includes('lang=th') || navigator.language.startsWith('th')) ? 'th' : 'en';
+    const et = translations[errorLocale as Locale] || translations.en;
+    
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4">
           <div className="glass-dark p-8 rounded-2xl max-w-md w-full border-t-4 border-red-500/50">
             <div className="flex items-center gap-3 text-red-400 mb-4">
               <ShieldAlert className="w-8 h-8" />
-              <h2 className="text-2xl font-bold tracking-tight">System Error</h2>
+              <h2 className="text-2xl font-bold tracking-tight">{et.systemError}</h2>
             </div>
             <p className="text-white/70 mb-6 font-medium">
-              An unexpected error occurred. This might be due to security rules or a connection issue.
+              {et.unexpectedError}
             </p>
             <div className="bg-black/40 p-4 rounded-xl mb-6 overflow-auto max-h-40 border border-white/5">
               <code className="text-xs text-red-400/80 whitespace-pre-wrap">
@@ -60,7 +63,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all border border-red-500/30"
             >
               <RefreshCw className="w-5 h-5" />
-              Reload Application
+              {et.reloadApp}
             </button>
           </div>
         </div>
@@ -305,7 +308,7 @@ export default function App() {
             }`}
           >
             <ShieldAlert className="w-5 h-5" />
-            <span className="text-[10px] uppercase tracking-wider">{locale === 'en' ? 'Analysis' : 'การวิเคราะห์'}</span>
+            <span className="text-[10px] uppercase tracking-wider">{t.analysis}</span>
           </button>
           <button 
             onClick={() => setActiveTab('map')}
@@ -316,7 +319,7 @@ export default function App() {
             }`}
           >
             <MapPin className="w-5 h-5" />
-            <span className="text-[10px] uppercase tracking-wider">{locale === 'en' ? 'Map View' : 'มุมมองแผนที่'}</span>
+            <span className="text-[10px] uppercase tracking-wider">{t.mapView}</span>
           </button>
         </div>
 

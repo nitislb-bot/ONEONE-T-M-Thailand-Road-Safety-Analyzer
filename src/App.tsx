@@ -7,7 +7,7 @@ import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'rea
 import { Sidebar } from './components/Sidebar';
 import { MapComponent } from './components/MapComponent';
 import { AboutUs } from './components/AboutUs';
-import { SafetyAnalysis, BlackSpot, Accident } from './services/geminiService';
+import { SafetyAnalysis, BlackSpot, Accident, JourneySafetyReport } from './services/geminiService';
 import { auth, db, signIn, signOut, analysesCollection, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { onSnapshot, query, orderBy, limit, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -81,6 +81,7 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>('th');
   const [activeTab, setActiveTab] = useState<'map' | 'sidebar'>('sidebar');
   const [requestedAccident, setRequestedAccident] = useState<Accident | null>(null);
+  const [journeyPlan, setJourneyPlan] = useState<JourneySafetyReport | null>(null);
 
   const t = translations[locale];
 
@@ -334,6 +335,10 @@ export default function App() {
             setLocale={setLocale}
             requestedAccident={requestedAccident}
             clearRequestedAccident={() => setRequestedAccident(null)}
+            onJourneyPlanComplete={(plan: JourneySafetyReport) => {
+              setJourneyPlan(plan);
+              setActiveTab('map');
+            }}
           />
         </div>
         
@@ -355,6 +360,7 @@ export default function App() {
               setRequestedAccident(acc);
               setActiveTab('sidebar'); // Switch to sidebar so user sees the loading state/modal
             }}
+            journeyPlan={journeyPlan}
           />
         </div>
       </div>

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { analyzeArea, SafetyAnalysis, getDetailedAccidentReport, Accident } from '../services/geminiService';
+import React, { useState, useEffect, useMemo } from 'react';
+import { analyzeArea, SafetyAnalysis, getDetailedAccidentReport, Accident, analyzeAccidentTrends, getJourneySafetyPlan, JourneySafetyReport, getDriverCoaching, DriverCoachingReport } from '../services/geminiService';
 import { User } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
-import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages, BarChart3, Route, Wind, Car, GraduationCap, CheckCircle2, Lightbulb, ClipboardCheck } from 'lucide-react';
 
 import { Locale, translations } from '../i18n';
 
@@ -20,6 +20,7 @@ interface SidebarProps {
   setLocale: (locale: Locale) => void;
   requestedAccident: Accident | null;
   clearRequestedAccident: () => void;
+  onJourneyPlanComplete: (plan: JourneySafetyReport) => void;
 }
 
 const PREDEFINED_RISK_FACTORS = [
@@ -50,9 +51,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   locale,
   setLocale,
   requestedAccident,
-  clearRequestedAccident
+  clearRequestedAccident,
+  onJourneyPlanComplete
 }) => {
-  const t = translations[locale];
+  const [sidebarMode, setSidebarMode] = useState<'area' | 'journey' | 'coaching'>('area');
+  const [journeyOrigin, setJourneyOrigin] = useState('');
+  const [journeyDest, setJourneyDest] = useState('');
+  const [journeyReport, setJourneyReport] = useState<JourneySafetyReport | null>(null);
+  const [isGeneratingJourney, setIsGeneratingJourney] = useState(false);
+  const [coachingReport, setCoachingReport] = useState<DriverCoachingReport | null>(null);
+  const [isGeneratingCoaching, setIsGeneratingCoaching] = useState(false);
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
   const [workOrderName, setWorkOrderName] = useState('');
@@ -60,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [selectedRiskFactors, setSelectedRiskFactors] = useState<string[]>([]);
   const [customRiskInput, setCustomRiskInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingTrends, setIsGeneratingTrends] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -69,6 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<Accident | Accident[] | null>(null);
+  const t = translations[locale];
 
   // Update local form state when analysis changes from history
   useEffect(() => {
@@ -137,6 +147,70 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setIsGeneratingReport(false);
     }
   };
+
+  const handleGenerateTrendAnalysis = async () => {
+    if (!analysis || !province || !district) return;
+    
+    setIsGeneratingTrends(true);
+    setReportTarget(analysis.recentAccidents);
+    try {
+      const trends = await analyzeAccidentTrends(province, district, analysis.recentAccidents);
+      setDetailedReport(trends);
+      setIsReportModalOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate trend analysis.');
+    } finally {
+      setIsGeneratingTrends(false);
+    }
+  };
+
+  const handleGenerateJourneyPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!journeyOrigin || !journeyDest) {
+      setError('Please provide both Origin and Destination.');
+      return;
+    }
+    
+    setIsGeneratingJourney(true);
+    setError(null);
+    try {
+      const plan = await getJourneySafetyPlan(journeyOrigin, journeyDest);
+      setJourneyReport(plan);
+      onJourneyPlanComplete(plan);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate journey safety plan.');
+    } finally {
+      setIsGeneratingJourney(false);
+    }
+  };
+
+  const handleGenerateCoaching = async () => {
+    if (!analysis) {
+      setError('Please perform an Area Analysis first to provide base data for coaching.');
+      return;
+    }
+    
+    setIsGeneratingCoaching(true);
+    setError(null);
+    try {
+      const report = await getDriverCoaching(analysis, journeyReport || undefined);
+      setCoachingReport(report);
+      setSidebarMode('coaching');
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate coaching program.');
+    } finally {
+      setIsGeneratingCoaching(false);
+    }
+  };
+
+  const severityStats = useMemo(() => {
+    if (!analysis || !analysis.recentAccidents) return null;
+    const stats = { Fatal: 0, Major: 0, Minor: 0 };
+    analysis.recentAccidents.forEach(acc => {
+      if (acc.severity in stats) stats[acc.severity as keyof typeof stats]++;
+    });
+    return stats;
+  }, [analysis]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,6 +285,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="w-full md:w-96 flex-1 md:flex-none md:h-full bg-[#0a0a0a] border-t md:border-t-0 md:border-r border-white/10 flex flex-col shadow-lg z-10 overflow-hidden text-white print:w-full print:h-auto print:shadow-none print:border-none print:overflow-visible">
+      {/* Mode Toggle */}
+      <div className="flex p-2 bg-white/5 border-b border-white/10 print:hidden">
+        <button
+          onClick={() => setSidebarMode('area')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'area' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+        >
+          <MapPin className="w-4 h-4" />
+          Area Analysis
+        </button>
+        <button
+          onClick={() => setSidebarMode('journey')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'journey' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+        >
+          <Route className="w-4 h-4" />
+          Journey Plan
+        </button>
+        <button
+          onClick={() => setSidebarMode('coaching')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'coaching' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          {t.driverCoaching || 'Coaching'}
+        </button>
+      </div>
+
       <div className="p-4 md:p-6 border-b border-white/10 bg-white/5 print:bg-white print:border-b-2 print:border-gray-800 print:p-0 print:pb-4 print:mb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -388,7 +487,206 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div className="p-4 md:p-6 print:p-0">
-            <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
+            {sidebarMode === 'journey' ? (
+              <div className="space-y-6">
+                <form onSubmit={handleGenerateJourneyPlan} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/70 mb-1">Origin</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                      <input
+                        type="text"
+                        value={journeyOrigin}
+                        onChange={(e) => setJourneyOrigin(e.target.value)}
+                        placeholder="e.g., Bangkok"
+                        className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/70 mb-1">Destination</label>
+                    <div className="relative">
+                      <Navigation className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                      <input
+                        type="text"
+                        value={journeyDest}
+                        onChange={(e) => setJourneyDest(e.target.value)}
+                        placeholder="e.g., Chiang Mai"
+                        className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isGeneratingJourney}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isGeneratingJourney ? (
+                      <><Loader2 className="w-5 h-5 animate-spin" /> Assessing Route...</>
+                    ) : (
+                      <><ShieldCheck className="w-5 h-5" /> Generate Journey Plan</>
+                    )}
+                  </button>
+                </form>
+
+                {journeyReport && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className={`p-4 rounded-xl border ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-900/20 border-red-800' : 'bg-blue-900/20 border-blue-800'}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">Route Safety</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
+                          {journeyReport.overallSafetyRating}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium leading-relaxed">{journeyReport.routeSummary}</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
+                        <Wind className="w-3.5 h-3.5" />
+                        Real-Time Alerts
+                      </h4>
+                      {journeyReport.weatherAlerts.map((alert, i) => (
+                        <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/10">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-bold text-white">{alert.condition}</span>
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded uppercase font-bold ${alert.severity === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                              {alert.severity}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-white/60">{alert.impact}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
+                        <Car className="w-3.5 h-3.5" />
+                        Traffic Conditions
+                      </h4>
+                      {journeyReport.trafficConditions.map((traffic, i) => (
+                        <div key={i} className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white">{traffic.location}</span>
+                            <span className="text-[10px] text-white/50">{traffic.status}</span>
+                          </div>
+                          <div className="text-orange-400 text-xs font-bold">+{traffic.delayMinutes}m</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl">
+                      <h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Dispatcher's Advice</h4>
+                      <p className="text-sm text-blue-100 leading-relaxed italic">"{journeyReport.adviseForDriver}"</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : sidebarMode === 'coaching' ? (
+              <div className="space-y-6">
+                {!coachingReport && !isGeneratingCoaching ? (
+                  <div className="text-center py-12 px-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <GraduationCap className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold mb-2">{t.driverCoaching || 'Driver Coaching'}</h3>
+                    <p className="text-sm text-white/50 mb-6 italic">"Turn data into safer habits. Generate a personalized training program based on current analysis."</p>
+                    <button
+                      onClick={handleGenerateCoaching}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <ShieldCheck className="w-5 h-5" />
+                      {t.getCoaching || 'Generate Coaching Program'}
+                    </button>
+                  </div>
+                ) : isGeneratingCoaching ? (
+                  <div className="text-center py-20">
+                    <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
+                    <p className="text-sm text-white/60 animate-pulse">{t.generatingCoaching || 'Developing Coaching Program...'}</p>
+                    <p className="text-[10px] text-white/30 mt-2">Tailoring modules to specific local risks...</p>
+                  </div>
+                ) : coachingReport && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Lightbulb className="w-5 h-5 text-yellow-400" />
+                        <h3 className="font-bold text-blue-100">{t.coachingSummary || 'Coaching Summary'}</h3>
+                      </div>
+                      <p className="text-sm text-blue-100/80 leading-relaxed mb-4 italic">"{coachingReport.summary}"</p>
+                      
+                      <div className="pt-4 border-t border-blue-500/20">
+                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{t.riskProfile || 'Your Risk Profile'}</h4>
+                        <p className="text-xs text-blue-100/70">{coachingReport.riskProfile}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest px-1 flex items-center gap-2">
+                        <Route className="w-4 h-4" />
+                        {t.coachingModules || 'Training Modules'}
+                      </h3>
+                      {coachingReport.modules.map((module, i) => (
+                        <div key={i} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-blue-500/30 transition-colors">
+                          <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                            <h4 className="font-bold text-sm text-white">{module.title}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 border border-blue-800/30 font-bold uppercase">
+                              {module.category}
+                            </span>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            <div className="space-y-2">
+                              <h5 className="text-[10px] font-bold text-white/30 uppercase">Coaching Tips</h5>
+                              <ul className="space-y-2">
+                                {module.tips.map((tip, ti) => (
+                                  <li key={ti} className="flex gap-2 text-xs text-white/80">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                    {tip}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <h5 className="text-[10px] font-bold text-white/30 uppercase">{t.trainingSteps || 'Training Steps'}</h5>
+                              <div className="space-y-1.5">
+                                {module.trainingSteps.map((step, si) => (
+                                  <div key={si} className="text-[11px] text-white/60 bg-white/5 px-2 py-1 rounded">
+                                    {si + 1}. {step}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-white/5">
+                              <p className="text-[10px] italic text-blue-400/70">
+                                <strong>{t.riskRelation || 'Why this matters:'}</strong> {module.riskRelation}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-green-900/10 border border-green-800/30 p-5 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <ClipboardCheck className="w-5 h-5 text-green-400" />
+                        <h3 className="font-bold text-green-100">{t.preTripChecklist || 'Pre-Trip Safety Checklist'}</h3>
+                      </div>
+                      <ul className="space-y-3">
+                        {coachingReport.personalizedChecklist.map((item, i) => (
+                          <li key={i} className="flex gap-3 text-xs text-green-100/70">
+                            <div className="w-5 h-5 rounded border border-green-500/30 shrink-0 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-sm bg-green-500/20" />
+                            </div>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-1">{t.workOrderName}</label>
               <div className="relative">
@@ -731,6 +1029,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   </div>
                   <div className="space-y-4">
+                    {severityStats && (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 overflow-hidden">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Severity Mix</h4>
+                          <button 
+                            onClick={handleGenerateTrendAnalysis}
+                            disabled={isGeneratingTrends}
+                            className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {isGeneratingTrends ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <BarChart3 className="w-2.5 h-2.5" />}
+                            Run AI Trend Analysis
+                          </button>
+                        </div>
+                        <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-2">
+                          {Object.entries(severityStats).map(([key, val]) => {
+                            const total = analysis.recentAccidents.length;
+                            const pct = (val / total) * 100;
+                            if (pct === 0) return null;
+                            const colors: any = { Fatal: 'bg-red-500', Major: 'bg-orange-500', Minor: 'bg-yellow-500' };
+                            return <div key={key} style={{ width: `${pct}%` }} className={colors[key]} />;
+                          })}
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-red-400 font-bold">Fatal: {severityStats.Fatal}</span>
+                          <span className="text-orange-400 font-bold">Major: {severityStats.Major}</span>
+                          <span className="text-yellow-400 font-bold">Minor: {severityStats.Minor}</span>
+                        </div>
+                      </div>
+                    )}
                     {analysis.recentAccidents.map((acc, idx) => (
                       <div 
                         key={idx} 
@@ -777,9 +1104,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           )}
-        </div>
-        )}
-      </div>
+        </>
+      )}
+    </div>
+  )}
+</div>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (

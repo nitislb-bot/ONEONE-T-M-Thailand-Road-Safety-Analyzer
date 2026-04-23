@@ -25,6 +25,8 @@ export interface Accident {
   severity: 'Minor' | 'Major' | 'Fatal';
   timestamp: string;
   description: string;
+  aiSummary?: string;
+  avoidanceTip?: string;
   confirmations?: number;
   comments?: { text: string; timestamp: number }[];
 }
@@ -53,26 +55,17 @@ export async function analyzeArea(
 ): Promise<SafetyAnalysis> {
   let prompt = `Analyze the road safety in the district/city of "${district}" within the province of "${province}".
 Using data referenced from https://www.thairsc.com/ (Thai Road Safety Culture), local news, and official reports, identify:
-1. AT LEAST 70 specific "Black Spots" (historical high-risk zones).
-2. AT LEAST 30 RECENT accidents (reported in the last 7-30 days).
+1. AT LEAST 25 specific "Black Spots" (historical high-risk zones).
+2. AT LEAST 15 RECENT accidents (reported in the last 7-30 days).
 
 CRITICAL ACCURACY REQUIREMENTS:
 - You MUST provide high-precision latitude and longitude coordinates for EVERY point.
 - Location Name Format: Provide the road name or intersection in BOTH Thai and English (e.g., "ถนนสุขุมวิท / Sukhumvit Road").
 - Use specific kilometer markers (e.g., "Highway 1, KM 45+200"), major intersections, or recognizable landmarks to pinpoint locations.
-- Verify coordinates: Cross-reference the location name with its real-world coordinates. Do NOT provide generic coordinates for the entire district.
 - Each point must be unique and accurately placed on the map.
 - If a report mentions a specific bridge, school, or hospital, use those coordinates.
 
-For each Black Spot, provide accident statistics and driving advice.
-For each Recent Accident, provide the type, severity, and a brief description.
-
-CONTENT STYLE REQUIREMENTS:
-- Risk Factors: Use short, punchy phrases (e.g., "Blind Spot", "Slippery Road", "No Streetlights").
-- Recommendations: Use clear, actionable instructions (e.g., "Slow down to 40km/h", "Use high beams", "Watch for U-turns").
-- Keep descriptions concise and easy to read at a glance.
-
-You MUST return a minimum of 100 total points (Black Spots + Recent Accidents).`;
+You MUST return a total of around 40-50 high-quality points (Black Spots + Recent Accidents).`;
 
   if (customRiskFactors && customRiskFactors.length > 0) {
     prompt += `\n\nUSER-SPECIFIED RISK FACTORS TO PRIORITIZE:
@@ -127,9 +120,11 @@ ${historicalData}`;
                 type: { type: Type.STRING, description: "e.g., Multi-vehicle collision, Motorcycle accident" },
                 severity: { type: Type.STRING, enum: ["Minor", "Major", "Fatal"] },
                 timestamp: { type: Type.STRING, description: "Approximate date/time of accident" },
-                description: { type: Type.STRING }
+                description: { type: Type.STRING, description: "Short description of the event" },
+                aiSummary: { type: Type.STRING, description: "Expert AI summary of what happened (1-2 sentences)" },
+                avoidanceTip: { type: Type.STRING, description: "Direct advice for drivers on how to avoid similar accidents at this location" }
               },
-              required: ["id", "locationName", "latitude", "longitude", "type", "severity", "timestamp", "description"]
+              required: ["id", "locationName", "latitude", "longitude", "type", "severity", "timestamp", "description", "aiSummary", "avoidanceTip"]
             }
           }
         },
@@ -185,4 +180,220 @@ export async function getDetailedAccidentReport(
   });
 
   return response.text || "Unable to generate a detailed report at this time.";
+}
+
+export async function analyzeAccidentTrends(
+  province: string,
+  district: string,
+  accidents: Accident[]
+): Promise<string> {
+  if (accidents.length === 0) return "No accident data available for trend analysis.";
+
+  const prompt = `Perform a high-level statistical and trend analysis on the following accident data for ${district}, ${province}:
+  
+  DATASET:
+  ${accidents.map(a => `- [${a.severity}] ${a.type} at ${a.locationName} (${a.timestamp}): ${a.description}`).join('\n')}
+  
+  REQUIRED ANALYSIS:
+  1. SEVERITY DISTRIBUTION: Summarize the ratio of Fatal, Major, and Minor accidents.
+  2. SPATIAL CLUSTERING: Identify if certain roads or intersections appear repeatedly.
+  3. TEMPORAL PATTERNS: Based on timestamps and descriptions, identify 'high-risk hours' (e.g., night-time, rush hour).
+  4. CAUSAL PATTERNS: Identify recurring accident types (e.g., 'Motorcycle vs Truck', 'Rear-end').
+  5. ACTIONABLE SUMMARY: Provide a 1-paragraph summary of the safety 'vibe' of this area.
+  
+  FORMAT: Use Markdown with clear bullet points and bold headings. Be concise but insightful.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-pro-preview",
+    contents: prompt,
+    config: {
+      systemInstruction: "You are a data scientist specializing in traffic safety analytics. Your goal is to find hidden patterns in raw accident reports to help stakeholders make informed decisions."
+    }
+  });
+
+  return response.text || "Unable to generate trend analysis.";
+}
+
+export interface JourneySafetyReport {
+  origin: string;
+  destination: string;
+  routeSummary: string;
+  overallSafetyRating: 'Safe' | 'Caution' | 'High Risk';
+  weatherAlerts: { condition: string; impact: string; severity: 'Low' | 'Medium' | 'High' }[];
+  trafficConditions: { location: string; status: string; delayMinutes: number }[];
+  hazardsOnRoute: { location: string; hazardType: string; description: string; lat: number; lng: number }[];
+  saferAlternative?: { description: string; reasoning: string };
+  adviseForDriver: string;
+}
+
+export interface CoachingModule {
+  title: string;
+  category: 'Technique' | 'Awareness' | 'Equipment' | 'Mental';
+  tips: string[];
+  trainingSteps: string[];
+  riskRelation: string;
+}
+
+export interface DriverCoachingReport {
+  summary: string;
+  riskProfile: string;
+  modules: CoachingModule[];
+  personalizedChecklist: string[];
+}
+
+export async function getDriverCoaching(
+  analysis: SafetyAnalysis,
+  journeyPlan?: JourneySafetyReport
+): Promise<DriverCoachingReport> {
+  const prompt = `Act as an AI Driver Coach. Based on the following safety data, generate a personalized "Driver Coaching & Training Program".
+
+AREA SAFETY CONTEXT:
+Summary: ${analysis.summary}
+Overall Risk: ${analysis.overallRisk}
+Accident Patterns: ${analysis.recentAccidents.map(a => a.type).join(', ')}
+
+${journeyPlan ? `JOURNEY CONTEXT:
+Route: ${journeyPlan.origin} to ${journeyPlan.destination}
+Hazards: ${journeyPlan.hazardsOnRoute.map(h => h.hazardType).join(', ')}
+Advice: ${journeyPlan.adviseForDriver}` : ''}
+
+YOUR TASK:
+1. RISK PROFILE: Briefly summarize the specific areas where this driver needs to improve based on the local accident patterns (e.g., if there are many motorcycle collisions, focus on blind-spot awareness).
+2. COACHING MODULES: Provide 3-4 structured training modules. Each module should include:
+   - A clear title.
+   - A category (Technique, Awareness, Equipment, or Mental).
+   - 3 actionable tips.
+   - 3 training steps (drills or exercises the driver can do).
+   - Risk Relation: Explain exactly how this module reduces the risk of the specific accidents detected in the area/journey.
+3. PERSONALIZED CHECKLIST: A 5-point checklist for the driver to review before they start their engine.
+
+FORMAT: Return a JSON object matching the DriverCoachingReport structure.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-pro-preview",
+    contents: prompt,
+    config: {
+      systemInstruction: "You are a professional defensive driving instructor using data-driven insights to coach corporate and individual drivers. Your tone is supportive but firm on safety. Focus on root causes found in the accident data.",
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          summary: { type: Type.STRING },
+          riskProfile: { type: Type.STRING },
+          modules: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                category: { type: Type.STRING, enum: ["Technique", "Awareness", "Equipment", "Mental"] },
+                tips: { type: Type.ARRAY, items: { type: Type.STRING } },
+                trainingSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                riskRelation: { type: Type.STRING }
+              },
+              required: ["title", "category", "tips", "trainingSteps", "riskRelation"]
+            }
+          },
+          personalizedChecklist: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ["summary", "riskProfile", "modules", "personalizedChecklist"]
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("Driver Coaching Service is temporarily unavailable.");
+  try {
+    return JSON.parse(response.text) as DriverCoachingReport;
+  } catch (e) {
+    throw new Error("Failed to parse coaching data.");
+  }
+}
+
+export async function getJourneySafetyPlan(
+  origin: string,
+  destination: string,
+  departureTime?: string
+): Promise<JourneySafetyReport> {
+  const prompt = `Develop a "Smart Journey Safety Management Plan" for a drive from "${origin}" to "${destination}"${departureTime ? ` departing at ${departureTime}` : ''}.
+  
+  Using Google Search, you MUST retrieve:
+  1. CURRENT WEATHER: Find the real-time weather forecast along the route (e.g., rain, fog, high winds in Thailand).
+  2. REAL-TIME TRAFFIC: Search for major accidents, construction, or heavy congestion currently reported on the likely path.
+  3. HISTORICAL HAZARDS: Identify known "Black Spots" or sharp curves on the main highways connecting these two points.
+  
+  REQUIRED OUTPUT:
+  - Overall Safety Rating: (Safe / Caution / High Risk)
+  - Weather Alerts: List specific weather conditions and their impact on driving (e.g., "Slippery roads near Saraburi due to rain").
+  - Traffic: List bottlenecks and delays.
+  - Hazards: Pinpoint at least 3 specific coordinates (lat/lng) of dangerous segments on this route.
+  - Alternative: Suggest if there is a safer (even if slightly longer) path to avoid a high-risk zone.
+  - Driver Advice: Provide 3-4 professional coaching tips tailored to this specific route.
+  
+  Coordinates are CRITICAL. Find the exact latitude and longitude for any hazards mentioned.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-pro-preview",
+    contents: prompt,
+    config: {
+      systemInstruction: "You are an AI Traffic Safety Dispatcher. Your goal is to provide real-time situational awareness for long-distance drivers in Thailand. You use Google Search to find current event data and historical hazard data to create a predictive safety plan. Ensure all coordinates are precise and verified.",
+      responseMimeType: "application/json",
+      tools: [{ googleSearch: {} }],
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          origin: { type: Type.STRING },
+          destination: { type: Type.STRING },
+          routeSummary: { type: Type.STRING },
+          overallSafetyRating: { type: Type.STRING, enum: ["Safe", "Caution", "High Risk"] },
+          weatherAlerts: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                condition: { type: Type.STRING },
+                impact: { type: Type.STRING },
+                severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] }
+              }
+            }
+          },
+          trafficConditions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                location: { type: Type.STRING },
+                status: { type: Type.STRING },
+                delayMinutes: { type: Type.NUMBER }
+              }
+            }
+          },
+          hazardsOnRoute: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                location: { type: Type.STRING },
+                hazardType: { type: Type.STRING },
+                description: { type: Type.STRING },
+                lat: { type: Type.NUMBER },
+                lng: { type: Type.NUMBER }
+              }
+            }
+          },
+          saferAlternative: {
+            type: Type.OBJECT,
+            properties: {
+              description: { type: Type.STRING },
+              reasoning: { type: Type.STRING }
+            }
+          },
+          adviseForDriver: { type: Type.STRING }
+        },
+        required: ["origin", "destination", "routeSummary", "overallSafetyRating", "weatherAlerts", "trafficConditions", "hazardsOnRoute", "adviseForDriver"]
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("Safety Dispatcher is unavailable.");
+  return JSON.parse(response.text) as JourneySafetyReport;
 }

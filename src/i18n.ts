@@ -74,10 +74,23 @@ export const translations = {
     detailedReportTitle: "Detailed Accident Analysis & Road Precautions",
     printReport: "Print Report",
     close: "Close",
+    minimize: "Minimize",
+    expand: "Expand",
     translateToThai: "Translate to Thai",
     translateToEnglish: "Translate to English",
     generatingReport: "Generating enhanced AI report...",
     
+    // Coaching
+    driverCoaching: "AI Driver Coaching",
+    coachingSummary: "Coaching Summary",
+    riskProfile: "Your Risk Profile",
+    coachingModules: "Training Modules",
+    getCoaching: "Generate Coaching Program",
+    generatingCoaching: "Developing Coaching Program...",
+    preTripChecklist: "Pre-Trip Safety Checklist",
+    riskRelation: "Why this matters:",
+    trainingSteps: "Training Steps",
+
     // Filters
     recentAccident: "Recent Accident",
     criticalRiskSpot: "Critical Risk Spot",
@@ -174,10 +187,23 @@ export const translations = {
     detailedReportTitle: "รายงานวิเคราะห์อุบัติเหตุเชิงลึกและข้อควรระวังในการขับขี่",
     printReport: "พิมพ์รายงาน",
     close: "ปิด",
+    minimize: "ย่อหน้าต่าง",
+    expand: "ขยายหน้าต่าง",
     translateToThai: "แปลเป็นภาษาไทย",
     translateToEnglish: "Translate to English",
     generatingReport: "กำลังสร้างรายงาน AI เชิงลึก...",
     
+    // Coaching
+    driverCoaching: "ศูนย์ติวขับขี่ด้วย AI",
+    coachingSummary: "สรุปคำแนะนำการขับขี่",
+    riskProfile: "โปรไฟล์ความเสี่ยงของคุณ",
+    coachingModules: "โมดูลการฝึกอบรม",
+    getCoaching: "สร้างโปรแกรมติวคนขับ",
+    generatingCoaching: "กำลังจัดทำโปรแกรมติว...",
+    preTripChecklist: "รายการตรวจสอบความปลอดภัยก่อนเดินทาง",
+    riskRelation: "เหตุผลที่ต้องระวัง:",
+    trainingSteps: "ขั้นตอนการฝึกฝน",
+
     // Filters
     recentAccident: "อุบัติเหตุล่าสุด",
     criticalRiskSpot: "จุดเสี่ยงอันตราย (สีแดง)",

@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { motion, AnimatePresence } from 'motion/react';
 import { BlackSpot, Accident, JourneySafetyReport } from '../services/geminiService';
-import { PlusCircle, AlertCircle, MapPin, Navigation, Info, X, Edit2, Save, Trash2, AlertTriangle, Move, MessageSquare, ThumbsUp, Send, ChevronDown, ChevronUp, Route, Wind } from 'lucide-react';
+import { PlusCircle, AlertCircle, MapPin, Navigation, Info, X, Edit2, Save, Trash2, AlertTriangle, Move, MessageSquare, ThumbsUp, Send, ChevronDown, ChevronUp, Route, Wind, RefreshCw } from 'lucide-react';
 
 import { Locale, translations } from '../i18n';
 
@@ -18,20 +18,28 @@ L.Icon.Default.mergeOptions({
 
 const getMarkerColor = (riskLevel: string) => {
   switch (riskLevel) {
-    case 'Critical': return '#ef4444'; // red-500
-    case 'High': return '#f97316'; // orange-500
-    case 'Medium': return '#eab308'; // yellow-500
-    case 'Low': return '#22c55e'; // green-500
+    case 'Critical': 
+    case 'วิกฤต': return '#ef4444'; // red-500
+    case 'High': 
+    case 'สูง': return '#f97316'; // orange-500
+    case 'Medium': 
+    case 'ปานกลาง': return '#eab308'; // yellow-500
+    case 'Low': 
+    case 'ต่ำ': return '#22c55e'; // green-500
     default: return '#3b82f6'; // blue-500
   }
 };
 
 const getRiskColor = (risk: string) => {
   switch (risk) {
-    case 'Critical': return 'bg-red-900/40 text-red-200 border-red-500/50';
-    case 'High': return 'bg-orange-900/40 text-orange-200 border-orange-500/50';
-    case 'Medium': return 'bg-yellow-900/40 text-yellow-200 border-yellow-500/50';
-    case 'Low': return 'bg-green-900/40 text-green-200 border-green-500/50';
+    case 'Critical': 
+    case 'วิกฤต': return 'bg-red-900/40 text-red-200 border-red-500/50';
+    case 'High': 
+    case 'สูง': return 'bg-orange-900/40 text-orange-200 border-orange-500/50';
+    case 'Medium': 
+    case 'ปานกลาง': return 'bg-yellow-900/40 text-yellow-200 border-yellow-500/50';
+    case 'Low': 
+    case 'ต่ำ': return 'bg-green-900/40 text-green-200 border-green-500/50';
     default: return 'bg-blue-900/40 text-blue-200 border-blue-500/50';
   }
 };
@@ -95,12 +103,18 @@ const RiskSpotMarker = React.memo(({
   const hasPoorLighting = spot.riskFactors.some((f: string) => 
     f.toLowerCase().includes('lighting') || 
     f.toLowerCase().includes('dark') || 
-    f.toLowerCase().includes('visibility')
+    f.toLowerCase().includes('visibility') ||
+    f.includes('แสงสว่าง') || 
+    f.includes('มืด') || 
+    f.includes('ทัศนวิสัย')
   );
   const hasSharpCurves = spot.riskFactors.some((f: string) => 
     f.toLowerCase().includes('curve') || 
     f.toLowerCase().includes('winding') || 
-    f.toLowerCase().includes('bend')
+    f.toLowerCase().includes('bend') ||
+    f.includes('ทางโค้ง') || 
+    f.includes('หักศอก') || 
+    f.includes('คดเคี้ยว')
   );
 
   return (
@@ -129,9 +143,8 @@ const RiskSpotMarker = React.memo(({
         position={[spot.latitude, spot.longitude]}
         icon={getCachedIcon(getMarkerColor(spot.riskLevel), false, isSelected)}
         draggable={true}
-        bubblingMouseEvents={false}
         eventHandlers={{
-          click: () => {
+          click: (e) => {
             setActivePoint(spot);
             if (window.innerWidth < 768) {
               onHideUi();
@@ -143,18 +156,10 @@ const RiskSpotMarker = React.memo(({
             onUpdateSpot(spot.originalIndex, { ...spot, latitude: position.lat, longitude: position.lng });
           },
         }}
-      />
-      
-      {/* Separate Popup logic to avoid touch conflicts on mobile */}
-      {(editingSpotIndex === spot.originalIndex || window.innerWidth >= 768) && (
-        <Marker 
-          position={[spot.latitude, spot.longitude]} 
-          icon={L.divIcon({ className: 'hidden' })}
-          interactive={false}
-        >
-          <Popup minWidth={280} autoPanPadding={[20, 20]} className={editingSpotIndex === spot.originalIndex ? "editing-popup" : "viewing-popup"}>
-            {editingSpotIndex === spot.originalIndex && editForm ? (
-              <div className="p-3 min-w-[280px] max-w-sm bg-white rounded-lg shadow-sm">
+      >
+        <Popup minWidth={280} autoPanPadding={[20, 20]} className={editingSpotIndex === spot.originalIndex ? "editing-popup" : "viewing-popup"}>
+          {editingSpotIndex === spot.originalIndex && editForm ? (
+            <div className="p-3 min-w-[280px] max-w-sm bg-white rounded-lg shadow-sm">
               <div className="flex items-center justify-between mb-3 border-b pb-2">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-blue-600" />
@@ -304,27 +309,33 @@ const RiskSpotMarker = React.memo(({
                     {t.dragToCorrect}
                   </div>
 
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-semibold text-slate-600">{t.riskLevel}:</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getRiskColor(spot.riskLevel)}`}>
-                      {spot.riskLevel}
-                    </span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="text-xs font-semibold text-slate-600 block mb-1">{t.riskFactorsTitle}:</span>
-                    <div className="flex flex-wrap gap-1">
+                  <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-100 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-600 text-white rounded shadow-sm uppercase">
+                        {spot.riskLevel === 'Critical' ? t.critical : spot.riskLevel === 'High' ? t.high : spot.riskLevel === 'Medium' ? t.medium : t.low} {t.riskLevel || 'Risk'}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-slate-700 leading-relaxed font-bold mb-1">
+                      {t.aiSummary || 'AI Analysis & Risk Factors'}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mb-3">
                       {spot.riskFactors.map((f: string, i: number) => (
-                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-600 rounded border border-slate-200 whitespace-nowrap">
+                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-white text-slate-600 rounded border border-blue-200 shadow-sm whitespace-nowrap font-medium">
                           {f}
                         </span>
                       ))}
                     </div>
-                  </div>
-                  <div className="bg-slate-50 p-2 rounded border border-slate-200 mb-3">
-                    <span className="text-xs font-semibold text-slate-600 block mb-0.5 italic">{t.recommendation}:</span>
-                    <p className="text-xs text-slate-600 leading-relaxed italic">
-                      "{spot.recommendation}"
-                    </p>
+
+                    <div className="bg-white p-2 rounded border border-blue-200 shadow-sm">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase mb-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {t.howToAvoid || 'Action for Driver'}
+                      </p>
+                      <p className="text-xs text-slate-800 font-medium leading-tight">
+                        {spot.recommendation}
+                      </p>
+                    </div>
                   </div>
                   
                   <FeedbackSection 
@@ -350,7 +361,6 @@ const RiskSpotMarker = React.memo(({
           )}
         </Popup>
       </Marker>
-    )}
     </React.Fragment>
   );
 });
@@ -380,9 +390,8 @@ const AccidentMarker = React.memo(({
         position={[acc.latitude, acc.longitude]}
         icon={getCachedIcon('#ef4444', true, isSelected)}
         draggable={true}
-        bubblingMouseEvents={false}
         eventHandlers={{
-          click: () => {
+          click: (e) => {
             setActivePoint(acc);
             if (window.innerWidth < 768) {
               onHideUi();
@@ -394,15 +403,8 @@ const AccidentMarker = React.memo(({
             onUpdateAccident(acc.originalIndex, { ...acc, latitude: position.lat, longitude: position.lng });
           },
         }}
-      />
-      
-      {/* Separate Popup logic for desktop only as mobile uses detail card */}
-      {window.innerWidth >= 768 && (
-        <Marker 
-          position={[acc.latitude, acc.longitude]} 
-          icon={L.divIcon({ className: 'hidden' })}
-          interactive={false}
-        >
+      >
+        {window.innerWidth >= 768 && (
           <Popup minWidth={240} autoPanPadding={[20, 20]}>
             <div className="p-2">
           <div className="flex items-center justify-between mb-2">
@@ -437,7 +439,9 @@ const AccidentMarker = React.memo(({
               </div>
 
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-red-600 text-white rounded shadow-sm uppercase">{acc.severity}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-red-600 text-white rounded shadow-sm uppercase">
+                  {acc.severity === 'Fatal' ? t.fatal : acc.severity === 'Major' ? t.major : t.minor}
+                </span>
                 <span className="text-[10px] text-slate-500 font-medium">{acc.timestamp}</span>
               </div>
               
@@ -493,9 +497,9 @@ const AccidentMarker = React.memo(({
           )}
         </div>
       </Popup>
-    </Marker>
-  )}
-  </React.Fragment>
+    )}
+  </Marker>
+    </React.Fragment>
   );
 });
 
@@ -598,6 +602,7 @@ interface MapComponentProps {
   locale: Locale;
   onRequestDetailedReport: (accident: Accident) => void;
   journeyPlan?: JourneySafetyReport | null;
+  user?: any | null;
 }
 
 // Sub-component to handle map animations and view updates
@@ -642,17 +647,19 @@ const MapController: React.FC<{
       // Calculate a target center that accounts for the mobile card
       // Shifting the view so the marker is in the top 40% of the screen
       if (isMobile) {
-        map.flyTo([lat, lng], Math.max(zoom, 15), {
-          duration: 0.8
+        map.flyTo([lat, lng], Math.max(zoom, 16), {
+          duration: 1.2,
+          easeLinearity: 0.25
         });
         
         // Wait for fly to finish then pan slightly for better framing
         setTimeout(() => {
-          map.panBy([0, -80], { animate: true });
-        }, 850);
+          map.panBy([0, -120], { animate: true, duration: 0.5 });
+        }, 1200);
       } else {
-        map.flyTo([lat, lng], Math.max(zoom, 14), {
-          duration: 0.8
+        map.flyTo([lat, lng], Math.max(zoom, 15), {
+          duration: 1.2,
+          easeLinearity: 0.25
         });
       }
     }
@@ -688,8 +695,10 @@ const MapClickHandler: React.FC<{
   onToggleUi: () => void,
   onHideUi: () => void,
   isUiHidden: boolean,
-  setActivePoint: (v: any) => void
-}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode, onToggleUi, onHideUi, isUiHidden, setActivePoint }) => {
+  setActivePoint: (v: any) => void,
+  onHazardReport: (latlng: L.LatLng) => void,
+  isHazardMode: boolean
+}> = ({ onAddSpot, isAddMode, setIsAddMode, onSetUserLocation, isSimulateMode, onToggleUi, onHideUi, isUiHidden, setActivePoint, onHazardReport, isHazardMode }) => {
   useMapEvents({
     click(e) {
       // Check if original event target is the map container itself or a tile
@@ -705,6 +714,8 @@ const MapClickHandler: React.FC<{
       if (isAddMode) {
         onAddSpot(e.latlng);
         setIsAddMode(false);
+      } else if (isHazardMode) {
+        onHazardReport(e.latlng);
       } else if (isSimulateMode) {
         onSetUserLocation(e.latlng);
       } else {
@@ -737,7 +748,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   selectedPoint,
   locale,
   onRequestDetailedReport,
-  journeyPlan
+  journeyPlan,
+  user // added user prop
 }) => {
   const t = translations[locale];
   const defaultCenter: [number, number] = [13.7563, 100.5018]; // Default to Bangkok
@@ -753,6 +765,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [editForm, setEditForm] = useState<BlackSpot | null>(null);
   const [isUiHidden, setIsUiHidden] = useState(false);
 
+  // Community Hazard Reporting
+  const [isHazardMode, setIsHazardMode] = useState(false);
+  const [reportingLatLng, setReportingLatLng] = useState<L.LatLng | null>(null);
+  const [hazardType, setHazardType] = useState(t.criticalRiskSpot);
+  const [hazardDesc, setHazardDesc] = useState('');
+  const [hazardLoc, setHazardLoc] = useState('');
+  const [isSubmittingHazard, setIsSubmittingHazard] = useState(false);
+
   // Memoize filtered lists to prevent unnecessary re-calculations on every render
   const filteredBlackSpots = React.useMemo(() => {
     const withIndices = blackSpots.map((spot, originalIndex) => ({ ...spot, originalIndex }));
@@ -762,12 +782,30 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       ? validSpots.filter(spot => 
           spot.riskLevel === filterType || 
           spot.riskFactors.some(f => f.toLowerCase().includes(filterType.toLowerCase())) ||
-          (filterType === 'Poor Lighting' && spot.riskFactors.some(f => f.toLowerCase().includes('light') || f.toLowerCase().includes('dark') || f.toLowerCase().includes('visibility'))) ||
-          (filterType === 'Sharp Curve' && spot.riskFactors.some(f => f.toLowerCase().includes('curve') || f.toLowerCase().includes('winding') || f.toLowerCase().includes('bend'))) ||
-          (filterType === 'Construction' && spot.riskFactors.some(f => f.toLowerCase().includes('construction') || f.toLowerCase().includes('work'))) ||
-          (filterType === 'Flooding' && spot.riskFactors.some(f => f.toLowerCase().includes('flood') || f.toLowerCase().includes('water'))) ||
-          (filterType === 'Slippery' && spot.riskFactors.some(f => f.toLowerCase().includes('slippery') || f.toLowerCase().includes('oil') || f.toLowerCase().includes('skid'))) ||
-          (filterType === 'Steep' && spot.riskFactors.some(f => f.toLowerCase().includes('steep') || f.toLowerCase().includes('slope') || f.toLowerCase().includes('hill')))
+          (filterType === 'Poor Lighting' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('light') || f.toLowerCase().includes('dark') || f.toLowerCase().includes('visibility') ||
+            f.includes('แสงสว่าง') || f.includes('มืด') || f.includes('ทัศนวิสัย')
+          )) ||
+          (filterType === 'Sharp Curve' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('curve') || f.toLowerCase().includes('winding') || f.toLowerCase().includes('bend') ||
+            f.includes('ทางโค้ง') || f.includes('หักศอก') || f.includes('คดเคี้ยว')
+          )) ||
+          (filterType === 'Construction' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('construction') || f.toLowerCase().includes('work') ||
+            f.includes('ก่อสร้าง')
+          )) ||
+          (filterType === 'Flooding' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('flood') || f.toLowerCase().includes('water') ||
+            f.includes('น้ำท่วม') || f.includes('น้ำขัง')
+          )) ||
+          (filterType === 'Slippery' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('slippery') || f.toLowerCase().includes('oil') || f.toLowerCase().includes('skid') ||
+            f.includes('ลื่น')
+          )) ||
+          (filterType === 'Steep' && spot.riskFactors.some(f => 
+            f.toLowerCase().includes('steep') || f.toLowerCase().includes('slope') || f.toLowerCase().includes('hill') ||
+            f.includes('ชัน') || f.includes('ลาด')
+          ))
         )
       : validSpots;
   }, [blackSpots, filterType]);
@@ -848,6 +886,192 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
   return (
     <div className="h-full w-full relative z-10 bg-[#050505]">
+      {/* Community Hazard Reporting UI */}
+      {reportingLatLng && (
+        <div className="absolute inset-0 z-[4000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-orange-500" />
+                {t.addRisk}
+              </h3>
+              <button 
+                onClick={() => setReportingLatLng(null)}
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-white/60 mb-6 font-medium leading-relaxed">{t.reportIntro}</p>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-black text-white/40 uppercase mb-2 ml-1 tracking-widest">{t.hazardType}</label>
+                <select 
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium appearance-none"
+                  value={hazardType}
+                  onChange={(e) => setHazardType(e.target.value)}
+                >
+                  <option value={t.criticalRiskSpot}>{t.criticalRiskSpot}</option>
+                  <option value={t.highRiskZone}>{t.highRiskZone}</option>
+                  <option value={t.poorLighting}>{t.poorLighting}</option>
+                  <option value={t.sharpCurve}>{t.sharpCurve}</option>
+                  <option value={t.construction}>{t.construction}</option>
+                  <option value={t.slipperyRoad}>{t.slipperyRoad}</option>
+                  <option value={t.steepSlope}>{t.steepSlope}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/40 uppercase mb-2 ml-1 tracking-widest">{t.hazardLocation}</label>
+                <input 
+                  type="text"
+                  placeholder={t.locationName}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-white/20 font-medium"
+                  value={hazardLoc}
+                  onChange={(e) => setHazardLoc(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/40 uppercase mb-2 ml-1 tracking-widest">{t.hazardDescription}</label>
+                <textarea 
+                  rows={3}
+                  placeholder={t.localObservationsPlaceholder}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none placeholder:text-white/20 font-medium"
+                  value={hazardDesc}
+                  onChange={(e) => setHazardDesc(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 mb-2">
+                <MapPin className="w-5 h-5 text-blue-400 shrink-0" />
+                <div className="text-xs font-mono text-white/40 truncate">
+                  {reportingLatLng.lat.toFixed(6)}, {reportingLatLng.lng.toFixed(6)}
+                </div>
+              </div>
+
+              <button 
+                onClick={async () => {
+                  if (!hazardDesc.trim()) return;
+                  setIsSubmittingHazard(true);
+                  try {
+                    onAddSpot({
+                      locationName: hazardLoc || (locale === 'en' ? 'Unnamed Location' : 'สถานที่ไม่ได้ระบุชื่อ'),
+                      latitude: reportingLatLng.lat,
+                      longitude: reportingLatLng.lng,
+                      riskLevel: (hazardType.includes('Critical') || hazardType.includes('วิกฤต')) ? 'Critical' : 'High',
+                      accidentCount: 0,
+                      injuryCount: 0,
+                      fatalityCount: 0,
+                      riskFactors: [hazardType, locale === 'en' ? 'Community Reported' : 'รายงานโดยชุมชน'],
+                      recommendation: hazardDesc
+                    });
+                    
+                    alert(t.reportSuccess);
+                    setReportingLatLng(null);
+                    setHazardDesc('');
+                    setHazardLoc('');
+                    setIsHazardMode(false);
+                  } catch (err) {
+                    alert(t.reportError);
+                  } finally {
+                    setIsSubmittingHazard(false);
+                  }
+                }}
+                disabled={isSubmittingHazard || !hazardDesc.trim()}
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-900/40 active:scale-95"
+              >
+                {isSubmittingHazard ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+                {t.submitReport}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Hazard Mode Overlay UI */}
+      {isHazardMode && !reportingLatLng && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[3500] pointer-events-none">
+          <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="bg-orange-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-orange-400/50 backdrop-blur-md"
+          >
+            <div className="relative">
+              <MapPin className="w-5 h-5" />
+              <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-40"></div>
+            </div>
+            <span className="text-sm font-bold tracking-wide uppercase">{t.clickOnMap}</span>
+            <button 
+              onClick={() => setIsHazardMode(false)}
+              className="ml-2 pointer-events-auto p-1.5 bg-black/20 rounded-full hover:bg-black/30 transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Floating Action Menu */}
+      <div className="absolute min-[500px]:bottom-6 bottom-[100px] right-6 z-[1000] flex flex-col gap-3">
+        <AnimatePresence>
+          {!isUiHidden && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex flex-col gap-3 items-end"
+            >
+              {/* Report Hazard Toggle */}
+              <button
+                onClick={() => setIsHazardMode(!isHazardMode)}
+                className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl transition-all active:scale-95 border ${
+                  isHazardMode 
+                    ? 'bg-orange-600 text-white border-orange-400' 
+                    : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`p-1 rounded-lg ${isHazardMode ? 'bg-white/20' : 'bg-orange-100'}`}>
+                   <AlertTriangle className={`w-6 h-6 ${isHazardMode ? 'text-white' : 'text-orange-500'}`} />
+                </div>
+                <span className="text-sm font-extrabold tracking-tight">{t.addRisk}</span>
+              </button>
+
+              <button
+                onClick={() => setIsSimulateMode(!isSimulateMode)}
+                className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl transition-all active:scale-95 border ${
+                  isSimulateMode 
+                    ? 'bg-blue-600 text-white border-blue-400' 
+                    : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`p-1 rounded-lg ${isSimulateMode ? 'bg-white/20' : 'bg-blue-100'}`}>
+                  <Navigation className={`w-6 h-6 ${isSimulateMode ? 'text-white' : 'text-blue-500'}`} />
+                </div>
+                <span className="text-sm font-extrabold tracking-tight">{t.simulate}</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <button
+          onClick={() => setIsUiHidden(!isUiHidden)}
+          className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 hover:bg-slate-800 transition-all active:scale-90"
+        >
+          {isUiHidden ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
+        </button>
+      </div>
+
       <MapContainer
         center={defaultCenter}
         zoom={4}
@@ -871,6 +1095,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           onHideUi={() => setIsUiHidden(true)}
           isUiHidden={isUiHidden}
           setActivePoint={setActivePoint}
+          isHazardMode={isHazardMode}
+          onHazardReport={(latlng) => {
+            setReportingLatLng(latlng);
+            setIsHazardMode(false);
+          }}
         />
         
         {/* User Location Marker */}

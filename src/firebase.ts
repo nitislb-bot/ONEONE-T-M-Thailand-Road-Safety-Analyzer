@@ -32,6 +32,7 @@ export const signOut = () => auth.signOut();
 export const analysesCollection = collection(db, 'analyses');
 export const journeyPlansCollection = collection(db, 'journey_plans');
 export const coachingReportsCollection = collection(db, 'coaching_reports');
+export const hazardsCollection = collection(db, 'community_hazards');
 
 export enum OperationType {
   CREATE = 'create',

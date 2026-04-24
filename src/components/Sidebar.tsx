@@ -29,18 +29,18 @@ interface SidebarProps {
 }
 
 const PREDEFINED_RISK_FACTORS = [
-  "Heavy Truck Traffic",
-  "Poor Lighting",
-  "Sharp Curves",
-  "Frequent Flooding",
-  "Construction Zones",
-  "High Speed Zones",
-  "Animal Crossings",
-  "Fog/Poor Visibility",
-  "Slippery Road",
-  "Steep Slope",
-  "Pedestrian Crossing",
-  "School Zone"
+  "การจราจรของรถบรรทุกหนัก",
+  "แสงสว่างไม่เพียงพอ",
+  "ทางโค้งหักศอก",
+  "น้ำท่วมขังบ่อยครั้ง",
+  "พื้นที่ก่อสร้าง",
+  "เขตใช้ความเร็วสูง",
+  "จุดระวังช้างหรือสัตว์ข้ามทาง",
+  "หมอกหนา/ทัศนวิสัยต่ำ",
+  "ถนนลื่น",
+  "ทางลาดชัน",
+  "ทางม้าลาย/คนข้ามถนน",
+  "เขตโรงเรียน"
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -178,14 +178,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleGenerateJourneyPlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!journeyOrigin || !journeyDest) {
-      setError('Please provide both Origin and Destination.');
+      setError(t.fillOriginDest);
       return;
     }
     
     setIsGeneratingJourney(true);
     setError(null);
     try {
-      const plan = await getJourneySafetyPlan(journeyOrigin, journeyDest);
+      const plan = await getJourneySafetyPlan(journeyOrigin, journeyDest, undefined, analysis || undefined);
       setJourneyReport(plan);
       onJourneyPlanComplete(plan);
     } catch (err: any) {
@@ -197,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleGenerateCoaching = async () => {
     if (!analysis) {
-      setError('Please perform an Area Analysis first to provide base data for coaching.');
+      setError(t.performAnalysisFirst);
       return;
     }
     
@@ -227,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!province || !district) {
-      setError('Please fill in both Province and District.');
+      setError(t.fillProvinceDistrict);
       return;
     }
 
@@ -255,6 +255,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'Low': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const translateRisk = (risk: string) => {
+    switch (risk) {
+      case 'Critical': return t.criticalRisk || 'Critical Risk';
+      case 'High': return t.highRisk || 'High Risk';
+      case 'Medium': return t.mediumRisk || 'Medium Risk';
+      case 'Low': return t.lowRisk || 'Low Risk';
+      case 'Safe': return t.safe || 'Safe';
+      case 'Caution': return t.caution || 'Caution';
+      case 'High Risk': return t.highRisk || 'High Risk';
+      default: return risk;
     }
   };
 
@@ -499,7 +512,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getRiskColor(item.overallRisk)}`}>
-                            {item.overallRisk} {locale === 'en' ? 'Risk' : 'ความเสี่ยง'}
+                            {translateRisk(item.overallRisk)}
                           </span>
                           <span className="text-xs text-white/40">{item.blackSpots.length} {t.spots}</span>
                         </div>
@@ -573,7 +586,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${item.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : item.overallSafetyRating === 'Caution' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'}`}>
-                            {item.overallSafetyRating}
+                            {translateRisk(item.overallSafetyRating)}
                           </span>
                         </div>
                       </button>
@@ -652,10 +665,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         type="text"
                         value={journeyOrigin}
                         onChange={(e) => setJourneyOrigin(e.target.value)}
-                        placeholder="e.g., Bangkok"
+                        placeholder={t.provincePlaceholder}
                         className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
                       />
                     </div>
+                    {analysis && analysis.province && (
+                      <div className="mt-1 flex flex-col gap-1">
+                        <button 
+                          type="button"
+                          onClick={() => setJourneyOrigin(`${analysis.district}, ${analysis.province}`)}
+                          className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
+                        </button>
+                        <div className="flex items-center gap-2 text-[9px] text-white/30 backdrop-blur-sm bg-white/5 p-1 rounded border border-white/5">
+                          <Database className="w-2.5 h-2.5 text-blue-500" />
+                          <span>{t.deepAnalysisLink}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-white/70 mb-1">{t.destination}</label>
@@ -665,10 +694,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         type="text"
                         value={journeyDest}
                         onChange={(e) => setJourneyDest(e.target.value)}
-                        placeholder="e.g., Chiang Mai"
+                        placeholder={t.provincePlaceholder}
                         className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
                       />
                     </div>
+                    {analysis && analysis.province && (
+                      <button 
+                        type="button"
+                        onClick={() => setJourneyDest(`${analysis.district}, ${analysis.province}`)}
+                        className="text-[10px] text-blue-400 mt-1 hover:underline flex items-center gap-1"
+                      >
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
+                      </button>
+                    )}
                   </div>
                   <button
                     type="submit"
@@ -686,10 +725,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {journeyReport && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className={`p-4 rounded-xl border ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-900/20 border-red-800' : 'bg-blue-900/20 border-blue-800'}`}>
+                      {analysis && (
+                        <div className="mb-3 flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                          <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                          <span className="text-[9px] font-bold text-blue-300 uppercase tracking-tighter">
+                            {t.linkedWith} {analysis.district}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t.routeSafety}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
-                          {journeyReport.overallSafetyRating}
+                          {translateRisk(journeyReport.overallSafetyRating)}
                         </span>
                       </div>
                       <p className="text-sm font-medium leading-relaxed">{journeyReport.routeSummary}</p>
@@ -861,7 +908,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="text"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  placeholder="e.g., Bangkok, Chiang Mai"
+                  placeholder={t.provincePlaceholder}
                   className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
                 />
               </div>
@@ -874,7 +921,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="text"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
-                  placeholder="e.g., Pathum Wan, Mueang"
+                  placeholder={t.districtPlaceholder}
                   className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
                 />
               </div>
@@ -884,7 +931,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-1">
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4 text-white/40" />
-                  Risk Factors to Prioritize (Optional)
+                  {t.riskFactorsTitle}
                 </div>
               </label>
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -919,7 +966,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       addCustomRiskFactor();
                     }
                   }}
-                  placeholder="Add custom risk factor..."
+                  placeholder={t.customRiskPlaceholder}
                   className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-white placeholder:text-white/30"
                 />
                 <button
@@ -955,13 +1002,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-1">
                 <div className="flex items-center gap-1.5">
                   <Database className="w-4 h-4 text-white/40" />
-                  Local Observations / Physical Details
+                  {t.localObservations}
                 </div>
               </label>
               <textarea
                 value={historicalData}
                 onChange={(e) => setHistoricalData(e.target.value)}
-                placeholder="Describe physical city details, road conditions, or specific local hazards you've observed..."
+                placeholder={t.localObservationsPlaceholder}
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-24 resize-y text-sm text-white placeholder:text-white/30"
               />
             </div>
@@ -975,10 +1022,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Analyzing Area...
+                    {t.analyzingText}
                   </>
                 ) : (
-                  'Analyze Area Risks'
+                  t.analyzeAreaRisks
                 )}
               </button>
               <button
@@ -986,7 +1033,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={handleReset}
                 disabled={isLoading}
                 className="px-3 py-2.5 border border-white/10 text-white/60 rounded-md hover:bg-white/10 transition-colors disabled:opacity-50"
-                title="Reset Form"
+                title={t.resetForm}
               >
                 <RefreshCw className="w-5 h-5" />
               </button>
@@ -994,7 +1041,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {isLoading && (
               <p className="text-[10px] text-center text-white/40 mt-2 animate-pulse flex items-center justify-center gap-1">
                 <Navigation className="w-3 h-3" />
-                Pulling real-world map & safety data...
+                {t.pullingData}
               </p>
             )}
           </form>
@@ -1004,16 +1051,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="text-sm font-semibold text-red-200">Analysis Failed</h3>
+                  <h3 className="text-sm font-semibold text-red-200">{t.analysisFailed}</h3>
                   <p className="text-sm text-red-300 mt-1">{error}</p>
                   
                   <div className="mt-3 pt-3 border-t border-red-800/30">
-                    <p className="text-xs font-semibold text-red-200 mb-1">Common causes & solutions:</p>
+                    <p className="text-xs font-semibold text-red-200 mb-1">{t.commonCauses}</p>
                     <ul className="text-xs text-red-300 list-disc list-inside space-y-1">
-                      <li>Check for typos in your location or province names.</li>
-                      <li>Ensure the start and end locations are actually within or connected to the specified province.</li>
-                      <li>Try using broader or more well-known road names.</li>
-                      <li>If pasting historical data, ensure it is readable text, CSV, or JSON.</li>
+                      <li>{t.cause1}</li>
+                      <li>{t.cause2}</li>
+                      <li>{t.cause3}</li>
+                      <li>{t.cause4}</li>
                     </ul>
                   </div>
                 </div>
@@ -1027,7 +1074,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <div className="flex flex-col">
                     <h2 className="text-lg font-semibold text-white">
-                      {analysis.workOrderName || 'Analysis Summary'}
+                      {analysis.workOrderName || t.analysisSummary}
                     </h2>
                     {analysis.workOrderName && (
                       <span className="text-xs text-white/40">
@@ -1061,8 +1108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className={`p-4 rounded-lg border ${getRiskColor(analysis.overallRisk)} mb-4 print:border-gray-300 print:bg-white`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">Overall Area Risk</span>
-                    <span className="font-bold uppercase tracking-wider text-sm px-2 py-1 bg-black/20 rounded">{analysis.overallRisk}</span>
+                    <span className="font-semibold">{t.overallAreaRisk}</span>
+                    <span className="font-bold uppercase tracking-wider text-sm px-2 py-1 bg-black/20 rounded">{translateRisk(analysis.overallRisk)}</span>
                   </div>
                   <p className="text-sm leading-relaxed">{analysis.summary}</p>
                   
@@ -1206,8 +1253,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         <div className="flex justify-between text-[10px]">
                           <span className="text-red-400 font-bold">{t.fatalities}: {severityStats.Fatal}</span>
-                          <span className="text-orange-400 font-bold">Major: {severityStats.Major}</span>
-                          <span className="text-yellow-400 font-bold">Minor: {severityStats.Minor}</span>
+                          <span className="text-orange-400 font-bold">{t.major}: {severityStats.Major}</span>
+                          <span className="text-yellow-400 font-bold">{t.minor}: {severityStats.Minor}</span>
                         </div>
                       </div>
                     )}
@@ -1371,7 +1418,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center justify-between p-4 border-b border-white/10 bg-blue-900/20">
               <div className="flex items-center gap-2">
                 <Database className="w-5 h-5 text-blue-400" />
-                <h2 className="text-lg font-semibold text-white">Local Observations Impact</h2>
+                <h2 className="text-lg font-semibold text-white">{t.localObservations}</h2>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -1390,7 +1437,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-md transition-colors"
               >
-                Close
+                {t.close}
               </button>
             </div>
           </div>

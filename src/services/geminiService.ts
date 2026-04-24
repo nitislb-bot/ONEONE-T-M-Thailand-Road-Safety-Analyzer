@@ -58,6 +58,10 @@ Using data referenced from https://www.thairsc.com/ (Thai Road Safety Culture), 
 1. AT LEAST 25 specific "Black Spots" (historical high-risk zones).
 2. AT LEAST 15 RECENT accidents (reported in the last 7-30 days).
 
+LANGUAGE REQUIREMENT:
+- All descriptive fields (summary, historicalDataSummary, riskFactors, recommendation, descriptions, aiSummary, avoidanceTip) MUST be written in the THAI language.
+- Location names should be in BOTH Thai and English.
+
 CRITICAL ACCURACY REQUIREMENTS:
 - You MUST provide high-precision latitude and longitude coordinates for EVERY point.
 - Location Name Format: Provide the road name or intersection in BOTH Thai and English (e.g., "ถนนสุขุมวิท / Sukhumvit Road").
@@ -81,7 +85,7 @@ ${historicalData}`;
     model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
-      systemInstruction: "Act as an expert in road safety data analysis for Thailand. Use Google Search to find real-world hazards, 'Black Spots', and RECENT accident reports (last 30 days) from official sources like ThaiRSC (thairsc.com), local news (Khaosod, Thairath), and social media reports. Identify specific hazards within the specified province and district. Be sure to identify specific risk factors such as 'poor lighting', 'sharp curves', 'steep slope', 'no traffic signal', etc., as these will be visualized on the map. You MUST provide precise latitude and longitude coordinates for each point. Location names MUST be provided in BOTH Thai and English (e.g., 'ถนนสุขุมวิท / Sukhumvit Road'). If a report mentions a specific intersection, landmark, or kilometer marker (e.g., KM 12+500), find the exact coordinates for that location. Verify every coordinate against the location description to ensure accuracy. Do NOT use the same coordinates for multiple points. Provide actionable driving advice. Use extremely concise language for risk factors and recommendations (max 5-7 words each). You must always provide a JSON response with at least 100 total points across 'blackSpots' and 'recentAccidents'.",
+      systemInstruction: "Act as an expert in road safety data analysis for Thailand. Use Google Search to find real-world hazards, 'Black Spots', and RECENT accident reports (last 30 days). Identify specific hazards within the specified province and district. You MUST provide precise latitude and longitude coordinates for each point. Location names MUST be provided in BOTH Thai and English. Do NOT use the same coordinates for multiple points. Provide actionable driving advice. CRITICAL: All textual analysis (summary, historicalDataSummary, riskFactors, recommendation, descriptions, aiSummary, avoidanceTip) MUST be written entirely in the THAI language to assure local Thai drivers can understand easily.",
       responseMimeType: "application/json",
       tools: [{ googleSearch: {} }],
       responseSchema: {
@@ -201,13 +205,14 @@ export async function analyzeAccidentTrends(
   4. CAUSAL PATTERNS: Identify recurring accident types (e.g., 'Motorcycle vs Truck', 'Rear-end').
   5. ACTIONABLE SUMMARY: Provide a 1-paragraph summary of the safety 'vibe' of this area.
   
-  FORMAT: Use Markdown with clear bullet points and bold headings. Be concise but insightful.`;
+  FORMAT: Use Markdown with clear bullet points and bold headings. Be concise but insightful.
+  CRITICAL: The entire output MUST be written in the THAI language.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
-      systemInstruction: "You are a data scientist specializing in traffic safety analytics. Your goal is to find hidden patterns in raw accident reports to help stakeholders make informed decisions."
+      systemInstruction: "You are a data scientist specializing in traffic safety analytics. Your goal is to find hidden patterns in raw accident reports to help Thai stakeholders make informed decisions. Speak entirely in Thai."
     }
   });
 
@@ -274,13 +279,14 @@ YOUR TASK:
    - Risk Relation: Explain exactly how this module reduces the risk of the specific accidents detected in the area/journey.
 3. PERSONALIZED CHECKLIST: A 5-point checklist for the driver to review before they start their engine.
 
-FORMAT: Return a JSON object matching the DriverCoachingReport structure.`;
+FORMAT: Return a JSON object matching the DriverCoachingReport structure.
+CRITICAL: ALL text output MUST be in the THAI language so the Thai driver can easily understand.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
-      systemInstruction: "You are a professional defensive driving instructor using data-driven insights to coach corporate and individual drivers. Your tone is supportive but firm on safety. Focus on root causes found in the accident data.",
+      systemInstruction: "You are a professional defensive driving instructor using data-driven insights to coach corporate and individual drivers. Your tone is supportive but firm on safety. Focus on root causes found in the accident data. Speak entirely in Thai.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -319,10 +325,30 @@ FORMAT: Return a JSON object matching the DriverCoachingReport structure.`;
 export async function getJourneySafetyPlan(
   origin: string,
   destination: string,
-  departureTime?: string
+  departureTime?: string,
+  areaAnalysisContext?: SafetyAnalysis
 ): Promise<JourneySafetyReport> {
-  const prompt = `Develop a "Smart Journey Safety Management Plan" for a drive from "${origin}" to "${destination}"${departureTime ? ` departing at ${departureTime}` : ''}.
+  let contextString = '';
+  if (areaAnalysisContext) {
+    contextString = `
+  AREA SAFETY CONTEXT (from current analysis):
+  Province: ${areaAnalysisContext.province}
+  District: ${areaAnalysisContext.district}
+  Overall Area Risk: ${areaAnalysisContext.overallRisk}
+  Area Summary: ${areaAnalysisContext.summary}
+  Recent Accidents in this area: ${areaAnalysisContext.recentAccidents?.map(a => a.type + ' at ' + a.locationName).join(', ')}
   
+  Use this area context to provide a much deeper detail in the journey plan if the route passes through this area.
+    `;
+  }
+
+  const prompt = `Develop a "Smart Journey Safety Management Plan" for a drive from "${origin}" to "${destination}"${departureTime ? ` departing at ${departureTime}` : ''}.
+  ${contextString}
+  
+  LANGUAGE REQUIREMENT:
+  - Every single word of the conversational response (routeSummary, weatherAlerts, traffic status, hazard descriptions, advice) MUST be in the THAI language.
+  - Overall Safety Rating must be one of: Safe, Caution, High Risk (English values for the schema).
+
   Using Google Search, you MUST retrieve:
   1. CURRENT WEATHER: Find the real-time weather forecast along the route (e.g., rain, fog, high winds in Thailand).
   2. REAL-TIME TRAFFIC: Search for major accidents, construction, or heavy congestion currently reported on the likely path.
@@ -330,7 +356,7 @@ export async function getJourneySafetyPlan(
   
   REQUIRED OUTPUT:
   - Overall Safety Rating: (Safe / Caution / High Risk)
-  - Weather Alerts: List specific weather conditions and their impact on driving (e.g., "Slippery roads near Saraburi due to rain").
+  - Weather Alerts: List specific weather conditions and their impact on driving (e.g., "ถนนลื่นเนื่องจากฝนตก").
   - Traffic: List bottlenecks and delays.
   - Hazards: Pinpoint at least 3 specific coordinates (lat/lng) of dangerous segments on this route.
   - Alternative: Suggest if there is a safer (even if slightly longer) path to avoid a high-risk zone.
@@ -342,7 +368,7 @@ export async function getJourneySafetyPlan(
     model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
-      systemInstruction: "You are an AI Traffic Safety Dispatcher. Your goal is to provide real-time situational awareness for long-distance drivers in Thailand. You use Google Search to find current event data and historical hazard data to create a predictive safety plan. Ensure all coordinates are precise and verified.",
+      systemInstruction: "You are an AI Traffic Safety Dispatcher. Your goal is to provide real-time situational awareness for long-distance drivers in Thailand. CRITICAL: All conversational strings (summaries, tips, conditions) MUST be written in the THAI language to help Thai drivers understand easily. You use Google Search to find current event data and historical hazard data to create a predictive safety plan.",
       responseMimeType: "application/json",
       tools: [{ googleSearch: {} }],
       responseSchema: {

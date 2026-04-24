@@ -430,6 +430,7 @@ export default function App() {
               setActiveTab('sidebar'); // Switch to sidebar so user sees the loading state/modal
             }}
             journeyPlan={journeyPlan}
+            user={user}
           />
         </div>
       </div>

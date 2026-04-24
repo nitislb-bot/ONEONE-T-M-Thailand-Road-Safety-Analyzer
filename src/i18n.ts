@@ -164,6 +164,10 @@ export const translations = {
     highRiskSpots20: "Top 20 Critical Risk Spots",
     mitigation: "Mitigation",
     prevention: "Prevention",
+    accidentCount: "Accidents",
+    injuryCount: "Injuries",
+    fatalityCount: "Fatalities",
+    severityTrend: "Severity Trend (%)",
 
     // Filters
     recentAccident: "Recent Accident",
@@ -398,6 +402,10 @@ export const translations = {
     highRiskSpots20: "20 จุดเสี่ยงวิกฤตที่ต้องเฝ้าระวัง",
     mitigation: "แผนบรรเทาเหตุ",
     prevention: "แนวทางป้องกัน",
+    accidentCount: "สถิติอุบัติเหตุ",
+    injuryCount: "จำนวนผู้บาดเจ็บ",
+    fatalityCount: "จำนวนผู้เสียชีวิต",
+    severityTrend: "แนวโน้มความรุนแรง (%)",
 
     // Filters
     recentAccident: "อุบัติเหตุล่าสุด",

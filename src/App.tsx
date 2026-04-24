@@ -114,6 +114,7 @@ export default function App() {
   const [isSidebarFullScreen, setIsSidebarFullScreen] = useState(false);
   const [requestedAccident, setRequestedAccident] = useState<Accident | null>(null);
   const [journeyPlan, setJourneyPlan] = useState<JourneySafetyReport | null>(null);
+  const [coachingReport, setCoachingReport] = useState<DriverCoachingReport | null>(null);
 
   const t = translations[locale];
 
@@ -227,6 +228,7 @@ export default function App() {
       createdBy: user.displayName || user.email || 'Unknown',
       locationContext: analysis?.workOrderName || analysis?.district || 'Unknown Location'
     };
+    setCoachingReport(newReport);
     try {
       await setDoc(doc(db, 'coaching_reports', id), newReport);
     } catch (error) {
@@ -422,7 +424,7 @@ export default function App() {
               setActiveTab('map');
             }}
             onLoadCoachingHistory={(item) => {
-              // Sidebar state will handle viewing this
+              setCoachingReport(item);
             }}
             onPointClick={handlePointClick}
             onDeleteAnalysis={handleDeleteAnalysis}
@@ -435,6 +437,7 @@ export default function App() {
             clearRequestedAccident={() => setRequestedAccident(null)}
             onJourneyPlanComplete={handleJourneyPlanComplete}
             onCoachingReportComplete={handleCoachingReportComplete}
+            coachingReport={coachingReport}
             isFullScreen={isSidebarFullScreen}
             toggleFullScreen={() => setIsSidebarFullScreen(!isSidebarFullScreen)}
           />
@@ -459,6 +462,7 @@ export default function App() {
               setActiveTab('sidebar'); // Switch to sidebar so user sees the loading state/modal
             }}
             journeyPlan={journeyPlan}
+            coachingReport={coachingReport}
             user={user}
           />
         </div>

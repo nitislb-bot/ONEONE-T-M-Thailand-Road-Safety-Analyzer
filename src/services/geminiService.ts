@@ -249,6 +249,10 @@ export interface RiskSpot {
   hazardType: string;
   mitigationStrategy: string;
   preventionAdvice: string;
+  accidentCount: number;
+  injuryCount: number;
+  fatalityCount: number;
+  severityTrend: { year: number; severity: number }[];
 }
 
 export interface DriverCoachingReport {
@@ -287,11 +291,16 @@ Advice: ${journeyPlan.adviseForDriver}` : ''}
 YOUR TASK:
 1. DEEP INVESTIGATION: Analyze the root causes of the accidents and black spots in the area. Identify environmental factors, infrastructure issues, and common driver behaviors contributing to risk.
 2. MITIGATION & PREVENTION: Provide detailed strategies for the driver to mitigate these risks and prevent future incidents (e.g., specific defensive driving techniques, vehicle maintenance, route adjustments).
-3. 20 HIGH RISK SPOTS: Identify exactly 20 high-risk spots (lat/lng) within the analyzed area or along the route. For each spot, provide:
+3. 20 HIGH RISK SPOTS: Identify exactly 20 high-risk spots (lat/lng) within the analyzed area or along the route. Focus on spots with high historical accidents. For each spot, provide:
    - Specific location name (Thai/English).
    - Hazard type.
    - Mitigation strategy for that specific location.
    - Prevention advice.
+   - Accident statistics: Provide realistic estimated/actual historical statistics for this specific spot:
+     - accidentCount (Number of accidents)
+     - injuryCount (Number of injuries)
+     - fatalityCount (Number of deaths/fatalities)
+   - severityTrend: Provide a historical severity trend for the last 5 years (2020-2024). Each year should have a 'severity' score from 0-100 representing the total risk impact.
 4. COACHING MODULES: Provide 3-4 structured training modules (Technique, Awareness, Equipment, or Mental) with actionable tips and training steps, explaining how they reduce the specific risks detected.
 5. PERSONALIZED CHECKLIST: A 5-point checklist for the driver.
 
@@ -337,9 +346,23 @@ CRITICAL: ALL text output MUST be in the THAI language (except IDs/schema keys).
                 longitude: { type: Type.NUMBER },
                 hazardType: { type: Type.STRING },
                 mitigationStrategy: { type: Type.STRING },
-                preventionAdvice: { type: Type.STRING }
+                preventionAdvice: { type: Type.STRING },
+                accidentCount: { type: Type.INTEGER },
+                injuryCount: { type: Type.INTEGER },
+                fatalityCount: { type: Type.INTEGER },
+                severityTrend: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      year: { type: Type.INTEGER },
+                      severity: { type: Type.INTEGER }
+                    },
+                    required: ["year", "severity"]
+                  }
+                }
               },
-              required: ["locationName", "latitude", "longitude", "hazardType", "mitigationStrategy", "preventionAdvice"]
+              required: ["locationName", "latitude", "longitude", "hazardType", "mitigationStrategy", "preventionAdvice", "accidentCount", "injuryCount", "fatalityCount", "severityTrend"]
             }
           }
         },

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { analyzeArea, SafetyAnalysis, getDetailedAccidentReport, Accident, analyzeAccidentTrends, getJourneySafetyPlan, JourneySafetyReport, getDriverCoaching, DriverCoachingReport } from '../services/geminiService';
 import { User } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
-import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages, BarChart3, Route, Wind, Car, GraduationCap, CheckCircle2, Lightbulb, ClipboardCheck, Maximize2, Minimize2 } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages, BarChart3, Route, Wind, Car, GraduationCap, CheckCircle2, Lightbulb, ClipboardCheck, Maximize2, Minimize2, Skull } from 'lucide-react';
 
 import { Locale, translations } from '../i18n';
 
@@ -26,6 +26,7 @@ interface SidebarProps {
   clearRequestedAccident: () => void;
   onJourneyPlanComplete: (plan: JourneySafetyReport) => void;
   onCoachingReportComplete: (report: DriverCoachingReport) => void;
+  coachingReport: DriverCoachingReport | null;
   isFullScreen?: boolean;
   toggleFullScreen?: () => void;
 }
@@ -65,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   clearRequestedAccident,
   onJourneyPlanComplete,
   onCoachingReportComplete,
+  coachingReport,
   isFullScreen,
   toggleFullScreen
 }) => {
@@ -74,7 +76,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [journeyDest, setJourneyDest] = useState('');
   const [journeyReport, setJourneyReport] = useState<JourneySafetyReport | null>(null);
   const [isGeneratingJourney, setIsGeneratingJourney] = useState(false);
-  const [coachingReport, setCoachingReport] = useState<DriverCoachingReport | null>(null);
   const [isGeneratingCoaching, setIsGeneratingCoaching] = useState(false);
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
@@ -209,7 +210,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setError(null);
     try {
       const report = await getDriverCoaching(analysis, journeyReport || undefined);
-      setCoachingReport(report);
       setSidebarMode('coaching');
       onCoachingReportComplete(report);
     } catch (err: any) {
@@ -648,7 +648,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         onClick={() => {
                           onLoadCoachingHistory(item);
-                          setCoachingReport(item);
                           setSidebarMode('coaching');
                           setShowHistory(false);
                           setHistorySearchTerm('');
@@ -892,9 +891,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => onPointClick(spot.latitude, spot.longitude)}
                           >
                             <div className="flex justify-between items-start mb-2">
-                              <h4 className="text-xs font-bold text-white group-hover:text-red-400 transition-colors pr-2 line-clamp-1">
-                                {i + 1}. {spot.locationName}
-                              </h4>
+                              <div className="flex-1">
+                                <h4 className="text-xs font-bold text-white group-hover:text-red-400 transition-colors pr-2 line-clamp-1">
+                                  {i + 1}. {spot.locationName}
+                                </h4>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <div className="flex items-center gap-0.5 text-[9px] font-bold text-red-400 bg-red-400/10 px-1 rounded">
+                                    <AlertCircle className="w-2.5 h-2.5" /> {spot.accidentCount}
+                                  </div>
+                                  <div className="flex items-center gap-0.5 text-[9px] font-bold text-orange-400 bg-orange-400/10 px-1 rounded">
+                                    <UserIcon className="w-2.5 h-2.5" /> {spot.injuryCount}
+                                  </div>
+                                  <div className="flex items-center gap-0.5 text-[9px] font-bold text-red-600 bg-red-600/10 px-1 rounded">
+                                    <Skull className="w-2.5 h-2.5" /> {spot.fatalityCount}
+                                  </div>
+                                </div>
+                              </div>
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-900 text-red-100 font-bold shrink-0">
                                 {spot.hazardType || 'Point'}
                               </span>

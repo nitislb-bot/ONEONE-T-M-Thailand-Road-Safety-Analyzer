@@ -85,6 +85,7 @@ export default function App() {
   const [view, setView] = useState<'map' | 'about'>('map');
   const [locale, setLocale] = useState<Locale>('th');
   const [activeTab, setActiveTab] = useState<'map' | 'sidebar'>('sidebar');
+  const [isSidebarFullScreen, setIsSidebarFullScreen] = useState(false);
   const [requestedAccident, setRequestedAccident] = useState<Accident | null>(null);
   const [journeyPlan, setJourneyPlan] = useState<JourneySafetyReport | null>(null);
 
@@ -382,7 +383,7 @@ export default function App() {
           </button>
         </div>
 
-        <div className={`${activeTab === 'sidebar' ? 'flex' : 'hidden md:flex'} w-full md:w-96 flex-col md:h-full shrink-0 h-full overflow-hidden`}>
+        <div className={`${activeTab === 'sidebar' ? 'flex' : 'hidden md:flex'} ${isSidebarFullScreen ? 'w-full' : 'w-full md:w-96'} flex-col md:h-full shrink-0 h-full overflow-hidden transition-all duration-300 ease-in-out`}>
           <Sidebar 
             analysis={analysis}
             onAnalysisComplete={handleAnalysisComplete} 
@@ -408,12 +409,14 @@ export default function App() {
             clearRequestedAccident={() => setRequestedAccident(null)}
             onJourneyPlanComplete={handleJourneyPlanComplete}
             onCoachingReportComplete={handleCoachingReportComplete}
+            isFullScreen={isSidebarFullScreen}
+            toggleFullScreen={() => setIsSidebarFullScreen(!isSidebarFullScreen)}
           />
         </div>
         
         <div className={`flex-1 relative w-full h-full print:h-[500px] print:flex-none print:block print:w-full print:mb-8 print:break-inside-avoid print:border-2 print:border-gray-200 ${
           activeTab === 'map' ? 'block' : 'hidden md:block'
-        }`}>
+        } ${isSidebarFullScreen ? 'md:hidden' : 'md:block'}`}>
           <MapComponent 
             blackSpots={analysis?.blackSpots || []} 
             recentAccidents={analysis?.recentAccidents || []}

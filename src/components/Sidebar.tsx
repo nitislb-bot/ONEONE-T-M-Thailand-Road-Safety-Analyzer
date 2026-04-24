@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { analyzeArea, SafetyAnalysis, getDetailedAccidentReport, Accident, analyzeAccidentTrends, getJourneySafetyPlan, JourneySafetyReport, getDriverCoaching, DriverCoachingReport } from '../services/geminiService';
 import { User } from 'firebase/auth';
 import ReactMarkdown from 'react-markdown';
-import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages, BarChart3, Route, Wind, Car, GraduationCap, CheckCircle2, Lightbulb, ClipboardCheck } from 'lucide-react';
+import { MapPin, Navigation, AlertTriangle, ShieldCheck, Loader2, Database, Printer, Download, FileText, X, History, ChevronRight, CheckSquare, Square, Plus, Search, AlertCircle, LogOut, Trash2, User as UserIcon, ThumbsUp, RefreshCw, Info, ExternalLink, Languages, BarChart3, Route, Wind, Car, GraduationCap, CheckCircle2, Lightbulb, ClipboardCheck, Maximize2, Minimize2 } from 'lucide-react';
 
 import { Locale, translations } from '../i18n';
 
@@ -26,6 +26,8 @@ interface SidebarProps {
   clearRequestedAccident: () => void;
   onJourneyPlanComplete: (plan: JourneySafetyReport) => void;
   onCoachingReportComplete: (report: DriverCoachingReport) => void;
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
 const PREDEFINED_RISK_FACTORS = [
@@ -62,7 +64,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   requestedAccident,
   clearRequestedAccident,
   onJourneyPlanComplete,
-  onCoachingReportComplete
+  onCoachingReportComplete,
+  isFullScreen,
+  toggleFullScreen
 }) => {
   const [sidebarMode, setSidebarMode] = useState<'area' | 'journey' | 'coaching'>('area');
   const [historyTab, setHistoryTab] = useState<'area' | 'journey' | 'coaching'>('area');
@@ -271,6 +275,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const translateSeverity = (severity: string) => {
+    switch (severity) {
+      case 'Fatal': return t.fatal || 'Fatal';
+      case 'Major': return t.major || 'Major';
+      case 'Minor': return t.minor || 'Minor';
+      default: return severity;
+    }
+  };
+
   const exportToJSON = () => {
     if (!analysis) return;
     const dataStr = JSON.stringify(analysis, null, 2);
@@ -309,9 +322,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="w-full md:w-96 flex-1 md:flex-none md:h-full bg-[#0a0a0a] border-t md:border-t-0 md:border-r border-white/10 flex flex-col shadow-lg z-10 overflow-hidden text-white print:w-full print:h-auto print:shadow-none print:border-none print:overflow-visible">
+    <div className={`w-full ${isFullScreen ? '' : 'md:w-96 md:flex-none'} flex-1 md:h-full bg-[#0a0a0a] border-t md:border-t-0 md:border-r border-white/10 flex flex-col shadow-lg z-10 overflow-hidden text-white print:w-full print:h-auto print:shadow-none print:border-none print:overflow-visible`}>
       {/* Mode Toggle */}
-      <div className="flex p-2 bg-white/5 border-b border-white/10 print:hidden">
+      <div className="flex p-2 bg-white/5 border-b border-white/10 print-hide">
         <button
           onClick={() => setSidebarMode('area')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${sidebarMode === 'area' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
@@ -336,7 +349,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="p-4 md:p-6 border-b border-white/10 bg-white/5 print:bg-white print:border-b-2 print:border-gray-800 print:p-0 print:pb-4 print:mb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 print-hide">
           <div className="flex items-center gap-2">
             {user.photoURL ? (
               <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-white/10" referrerPolicy="no-referrer" />
@@ -365,6 +378,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <Info className="w-4 h-4" />
             </button>
+            {toggleFullScreen && (
+              <button 
+                onClick={toggleFullScreen}
+                className="hidden md:flex p-2 text-white/40 hover:text-blue-400 hover:bg-blue-900/20 rounded-full transition-colors"
+                title={isFullScreen ? t.exitFullScreen : t.fullScreen}
+              >
+                {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            )}
             <button 
               onClick={onSignOut}
               className="p-2 text-white/40 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
@@ -654,110 +676,113 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div className="p-4 md:p-6 print:p-0">
-            {sidebarMode === 'journey' ? (
-              <div className="space-y-6">
-                <form onSubmit={handleGenerateJourneyPlan} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-white/70 mb-1">{t.origin}</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
-                      <input
-                        type="text"
-                        value={journeyOrigin}
-                        onChange={(e) => setJourneyOrigin(e.target.value)}
-                        placeholder={t.provincePlaceholder}
-                        className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
-                      />
+            <div className="space-y-6">
+              {sidebarMode === 'journey' ? (
+                <>
+                  <form onSubmit={handleGenerateJourneyPlan} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white/70 mb-1">{t.origin}</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                        <input
+                          type="text"
+                          value={journeyOrigin}
+                          onChange={(e) => setJourneyOrigin(e.target.value)}
+                          placeholder={t.provincePlaceholder}
+                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                        />
+                      </div>
+                      {analysis && analysis.province && (
+                        <div className="mt-1 flex flex-col gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => setJourneyOrigin(`${analysis.district}, ${analysis.province}`)}
+                            className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
+                          </button>
+                          <div className="flex items-center gap-2 text-[9px] text-white/30 backdrop-blur-sm bg-white/5 p-1 rounded border border-white/5">
+                            <Database className="w-2.5 h-2.5 text-blue-500" />
+                            <span>{t.deepAnalysisLink}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {analysis && analysis.province && (
-                      <div className="mt-1 flex flex-col gap-1">
+                    <div>
+                      <label className="block text-sm font-medium text-white/70 mb-1">{t.destination}</label>
+                      <div className="relative">
+                        <Navigation className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                        <input
+                          type="text"
+                          value={journeyDest}
+                          onChange={(e) => setJourneyDest(e.target.value)}
+                          placeholder={t.provincePlaceholder}
+                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                        />
+                      </div>
+                      {analysis && analysis.province && (
                         <button 
                           type="button"
-                          onClick={() => setJourneyOrigin(`${analysis.district}, ${analysis.province}`)}
-                          className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                          onClick={() => setJourneyDest(`${analysis.district}, ${analysis.province}`)}
+                          className="text-[10px] text-blue-400 mt-1 hover:underline flex items-center gap-1"
                         >
                           <CheckCircle2 className="w-2.5 h-2.5" />
                           {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
                         </button>
-                        <div className="flex items-center gap-2 text-[9px] text-white/30 backdrop-blur-sm bg-white/5 p-1 rounded border border-white/5">
-                          <Database className="w-2.5 h-2.5 text-blue-500" />
-                          <span>{t.deepAnalysisLink}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-white/70 mb-1">{t.destination}</label>
-                    <div className="relative">
-                      <Navigation className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
-                      <input
-                        type="text"
-                        value={journeyDest}
-                        onChange={(e) => setJourneyDest(e.target.value)}
-                        placeholder={t.provincePlaceholder}
-                        className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
-                      />
-                    </div>
-                    {analysis && analysis.province && (
-                      <button 
-                        type="button"
-                        onClick={() => setJourneyDest(`${analysis.district}, ${analysis.province}`)}
-                        className="text-[10px] text-blue-400 mt-1 hover:underline flex items-center gap-1"
-                      >
-                        <CheckCircle2 className="w-2.5 h-2.5" />
-                        {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isGeneratingJourney}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isGeneratingJourney ? (
-                      <><Loader2 className="w-5 h-5 animate-spin" /> {t.assessingRoute}</>
-                    ) : (
-                      <><ShieldCheck className="w-5 h-5" /> {t.generateJourneyPlan}</>
-                    )}
-                  </button>
-                </form>
-
-                {journeyReport && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className={`p-4 rounded-xl border ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-900/20 border-red-800' : 'bg-blue-900/20 border-blue-800'}`}>
-                      {analysis && (
-                        <div className="mb-3 flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                          <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                          <span className="text-[9px] font-bold text-blue-300 uppercase tracking-tighter">
-                            {t.linkedWith} {analysis.district}
-                          </span>
-                        </div>
                       )}
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t.routeSafety}</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
-                          {translateRisk(journeyReport.overallSafetyRating)}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium leading-relaxed">{journeyReport.routeSummary}</p>
                     </div>
+                    <button
+                      type="submit"
+                      disabled={isGeneratingJourney}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isGeneratingJourney ? (
+                        <><Loader2 className="w-5 h-5 animate-spin" /> {t.assessingRoute}</>
+                      ) : (
+                        <><ShieldCheck className="w-5 h-5" /> {t.generateJourneyPlan}</>
+                      )}
+                    </button>
+                  </form>
 
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
-                        <Wind className="w-3.5 h-3.5" />
-                        {t.realTimeAlerts}
-                      </h4>
-                      {journeyReport.weatherAlerts.map((alert, i) => (
-                        <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/10">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-white">{alert.condition}</span>
-                            <span className={`text-[8px] px-1.5 py-0.5 rounded uppercase font-bold ${alert.severity === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                              {alert.severity}
+                  {journeyReport && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <div className={`p-4 rounded-xl border ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-900/20 border-red-800' : 'bg-blue-900/20 border-blue-800'}`}>
+                        {analysis && (
+                          <div className="mb-3 flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="text-[9px] font-bold text-blue-300 uppercase tracking-tighter">
+                              {t.linkedWith} {analysis.district}
                             </span>
                           </div>
-                          <p className="text-[11px] text-white/60">{alert.impact}</p>
+                        )}
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t.routeSafety}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${journeyReport.overallSafetyRating === 'High Risk' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
+                            {translateRisk(journeyReport.overallSafetyRating)}
+                          </span>
                         </div>
-                      ))}
+                        <p className="text-sm font-medium leading-relaxed">{journeyReport.routeSummary}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-1.5 px-1">
+                          <Wind className="w-3.5 h-3.5" />
+                          {t.realTimeAlerts}
+                        </h4>
+                        <div className={`grid gap-2 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                          {journeyReport.weatherAlerts.map((alert, i) => (
+                          <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/10">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-white">{alert.condition}</span>
+                              <span className={`text-[8px] px-1.5 py-0.5 rounded uppercase font-bold ${alert.severity === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                {alert.severity}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-white/60">{alert.impact}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -765,7 +790,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Car className="w-3.5 h-3.5" />
                         {t.trafficConditions}
                       </h4>
-                      {journeyReport.trafficConditions.map((traffic, i) => (
+                      <div className={`grid gap-2 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                        {journeyReport.trafficConditions.map((traffic, i) => (
                         <div key={i} className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-white">{traffic.location}</span>
@@ -775,35 +801,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
 
-                    <div className="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl">
-                      <h4 className="text-xs font-bold text-blue-400 uppercase mb-2">{t.dispatchersAdvice}</h4>
-                      <p className="text-sm text-blue-100 leading-relaxed italic">"{journeyReport.adviseForDriver}"</p>
+                      <div className="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl">
+                        <h4 className="text-xs font-bold text-blue-400 uppercase mb-2">{t.dispatchersAdvice}</h4>
+                        <p className="text-sm text-blue-100 leading-relaxed italic">"{journeyReport.adviseForDriver}"</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : sidebarMode === 'coaching' ? (
-              <div className="space-y-6">
-                {!coachingReport && !isGeneratingCoaching ? (
-                  <div className="text-center py-12 px-4 border border-dashed border-white/10 rounded-xl bg-white/5">
-                    <GraduationCap className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold mb-2">{t.driverCoaching}</h3>
-                    <p className="text-sm text-white/50 mb-6 italic">{t.coachingMotivation}</p>
-                    <button
-                      onClick={handleGenerateCoaching}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <ShieldCheck className="w-5 h-5" />
-                      {t.getCoaching}
-                    </button>
-                  </div>
-                ) : isGeneratingCoaching ? (
-                  <div className="text-center py-20">
-                    <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
-                    <p className="text-sm text-white/60 animate-pulse">{t.generatingCoaching}</p>
-                  </div>
-                ) : coachingReport && (
+                  )}
+                </>
+              ) : sidebarMode === 'coaching' ? (
+                <>
+                  {!coachingReport && !isGeneratingCoaching ? (
+                    <div className="text-center py-12 px-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <GraduationCap className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-bold mb-2">{t.driverCoaching}</h3>
+                      <p className="text-sm text-white/50 mb-6 italic">{t.coachingMotivation}</p>
+                      <button
+                        onClick={handleGenerateCoaching}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <ShieldCheck className="w-5 h-5" />
+                        {t.getCoaching}
+                      </button>
+                    </div>
+                  ) : isGeneratingCoaching ? (
+                    <div className="text-center py-20">
+                      <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
+                      <p className="text-sm text-white/60 animate-pulse">{t.generatingCoaching}</p>
+                    </div>
+                  ) : coachingReport && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-2xl">
                       <div className="flex items-center gap-2 mb-3">
@@ -823,7 +850,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Route className="w-4 h-4" />
                         {t.coachingModules}
                       </h3>
-                      {coachingReport.modules.map((module, i) => (
+                      <div className={`grid gap-4 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                        {coachingReport.modules.map((module, i) => (
                         <div key={i} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-blue-500/30 transition-colors">
                           <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
                             <h4 className="font-bold text-sm text-white">{module.title}</h4>
@@ -864,6 +892,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
 
                     <div className="bg-green-900/10 border border-green-800/30 p-5 rounded-2xl">
                       <div className="flex items-center gap-2 mb-3">
@@ -883,7 +912,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
+              </>
             ) : (
               <>
                 <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
@@ -1082,7 +1111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 print:hidden flex-wrap">
+                  <div className="flex items-center gap-1.5 print-hide flex-wrap">
                     <button
                       onClick={exportToJSON}
                       title="Export JSON"
@@ -1099,10 +1128,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                     <button
                       onClick={() => window.print()}
-                      title="Print / Save PDF"
-                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-blue-300 bg-blue-900/30 hover:bg-blue-900/50 rounded-md transition-colors"
+                      title={t.downloadPDF}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-sm"
                     >
-                      <Printer className="w-3.5 h-3.5" /> Print
+                      <FileText className="w-3.5 h-3.5" /> {t.downloadPDF}
                     </button>
                   </div>
                 </div>
@@ -1153,7 +1182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <div>
                 <h2 className="text-lg font-semibold text-white mb-3">{t.areaSafetyPoints} ({analysis.blackSpots.length})</h2>
-                <div className="space-y-4">
+                <div className={`grid gap-4 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
                   {analysis.blackSpots.map((spot, idx) => (
                     <div 
                       key={idx} 
@@ -1258,7 +1287,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       </div>
                     )}
-                    {analysis.recentAccidents.map((acc, idx) => (
+                    <div className={`grid gap-4 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                      {analysis.recentAccidents.map((acc, idx) => (
                       <div 
                         key={idx} 
                         className="bg-red-900/10 border border-red-800/20 rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-red-500/50 group"
@@ -1275,7 +1305,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ) : null}
                           </div>
                           <span className="text-[10px] font-bold px-2 py-0.5 bg-red-900/40 text-red-200 rounded uppercase border border-red-800/30">
-                            {acc.severity}
+                            {translateSeverity(acc.severity)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-white/40 mb-2">
@@ -1301,14 +1331,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    )}
     </div>
-  )}
+  </div>
+)}
 </div>
+  
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -1346,33 +1379,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isReportModalOpen && detailedReport && (
         <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#0f0f0f] w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/10 animate-in fade-in zoom-in duration-300">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-blue-900/20">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-blue-900/20 print:border-b-2 print:border-gray-800 print:bg-white">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-blue-400" />
-                <h2 className="text-lg font-semibold text-white">{t.detailedReportTitle}</h2>
+                <AlertCircle className="w-5 h-5 text-blue-400 print:text-gray-900" />
+                <h2 className="text-lg font-semibold text-white print:text-gray-900">{t.detailedReportTitle}</h2>
               </div>
               <button
                 onClick={() => setIsReportModalOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 hover:bg-white/10 rounded-full transition-colors print-hide"
               >
                 <X className="w-5 h-5 text-white/40" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar print:p-0 print:overflow-visible">
               {isGeneratingReport ? (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60">
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-white/60 print-hide">
                    <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
                    <p className="font-medium animate-pulse">{t.generatingReport}</p>
                 </div>
               ) : (
-                <div className="prose prose-invert prose-sm prose-blue max-w-none text-white/90">
-                  <div className="markdown-body">
+                <div className="prose prose-invert prose-sm prose-blue max-w-none text-white/90 print:text-black">
+                  <div className="markdown-body print:text-black">
                     <ReactMarkdown>{detailedReport}</ReactMarkdown>
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-white/10 bg-white/5 flex flex-wrap justify-between items-center gap-3">
+            <div className="p-4 border-t border-white/10 bg-white/5 flex flex-wrap justify-between items-center gap-3 print-hide">
               <div className="flex gap-2">
                 <button
                   onClick={() => handleGenerateDetailedReport(Array.isArray(reportTarget) ? undefined : (reportTarget as Accident), 'Thai')}

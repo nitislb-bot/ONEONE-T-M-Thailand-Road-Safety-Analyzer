@@ -203,6 +203,10 @@ export const translations = {
     communityReported: "Community Reported",
     reportSuccessAlert: "Hazard reported successfully! Our team will review it.",
     reportErrorAlert: "Failed to submit report. Please try again.",
+    fullScreen: "Full Screen",
+    exitFullScreen: "Exit Full Screen",
+    downloadPDF: "Download PDF",
+    exportData: "Export Data",
 
     // About Us
     ourMission: "Our Mission",
@@ -425,6 +429,10 @@ export const translations = {
     communityReported: "รายงานโดยชุมชน",
     reportSuccessAlert: "ส่งรายงานสำเร็จ! ทีมงานจะดำเนินการตรวจสอบข้อมูล",
     reportErrorAlert: "ส่งรายงานล้มเหลว โปรดลองอีกครั้ง",
+    fullScreen: "เต็มหน้าจอ",
+    exitFullScreen: "ออกจากหน้าจอเต็ม",
+    downloadPDF: "ดาวน์โหลด PDF",
+    exportData: "ส่งออกข้อมูล",
 
     // About Us
     ourMission: "ภารกิจของเรา",

@@ -833,15 +833,84 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ) : coachingReport && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-2xl">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Lightbulb className="w-5 h-5 text-yellow-400" />
-                        <h3 className="font-bold text-blue-100">{t.coachingSummary}</h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Lightbulb className="w-5 h-5 text-yellow-400" />
+                          <h3 className="font-bold text-blue-100">{t.coachingSummary}</h3>
+                        </div>
+                        <button
+                          onClick={handleGenerateCoaching}
+                          disabled={isGeneratingCoaching}
+                          className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {isGeneratingCoaching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                          AI Driver Coaching (New Request)
+                        </button>
                       </div>
                       <p className="text-sm text-blue-100/80 leading-relaxed mb-4 italic">"{coachingReport.summary}"</p>
                       
-                      <div className="pt-4 border-t border-blue-500/20">
-                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{t.riskProfile}</h4>
-                        <p className="text-xs text-blue-100/70">{coachingReport.riskProfile}</p>
+                      <div className="pt-4 border-t border-blue-500/20 space-y-4">
+                        <div>
+                          <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">{t.riskProfile}</h4>
+                          <p className="text-xs text-blue-100/70">{coachingReport.riskProfile}</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                              <Search className="w-3 h-3" /> {t.investigation}
+                            </h4>
+                            <p className="text-[11px] text-white/70 leading-relaxed">{coachingReport.investigationDetails}</p>
+                          </div>
+                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <h4 className="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1 flex items-center gap-1 text-orange-400">
+                              <ShieldCheck className="w-3 h-3" /> {t.mitigationPlan}
+                            </h4>
+                            <p className="text-[11px] text-white/70 leading-relaxed">{coachingReport.mitigationPlan}</p>
+                          </div>
+                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                            <h4 className="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1 flex items-center gap-1 text-green-400">
+                              <CheckSquare className="w-3 h-3" /> {t.preventionStrategies}
+                            </h4>
+                            <p className="text-[11px] text-white/70 leading-relaxed">{coachingReport.preventionStrategies}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Top 20 Risk Spots Section */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest px-1 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                        {t.highRiskSpots20}
+                      </h3>
+                      <div className={`grid gap-3 ${isFullScreen ? 'sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1'}`}>
+                        {coachingReport.highRiskSpots?.map((spot, i) => (
+                          <div 
+                            key={i} 
+                            className="bg-red-950/20 border border-red-900/30 rounded-xl p-3 hover:border-red-500/50 transition-all cursor-pointer group"
+                            onClick={() => onPointClick(spot.latitude, spot.longitude)}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="text-xs font-bold text-white group-hover:text-red-400 transition-colors pr-2 line-clamp-1">
+                                {i + 1}. {spot.locationName}
+                              </h4>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-900 text-red-100 font-bold shrink-0">
+                                {spot.hazardType || 'Point'}
+                              </span>
+                            </div>
+                            <div className="space-y-2 mt-2">
+                              <div>
+                                <div className="text-[9px] font-bold text-red-400/60 uppercase">{t.mitigation}</div>
+                                <p className="text-[10px] text-red-100/70 line-clamp-2">{spot.mitigationStrategy}</p>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold text-green-400/60 uppercase">{t.prevention}</div>
+                                <p className="text-[10px] text-green-100/70 line-clamp-2">{spot.preventionAdvice}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 

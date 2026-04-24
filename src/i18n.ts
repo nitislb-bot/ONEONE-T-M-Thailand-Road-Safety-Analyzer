@@ -156,6 +156,12 @@ export const translations = {
     trainingSteps: "Training Steps",
     coachingMotivation: "Turn data into safer habits. Generate a personalized training program based on current analysis.",
     coachingTips: "Coaching Tips",
+    investigation: "Deep Investigation",
+    mitigationPlan: "Mitigation Plan",
+    preventionStrategies: "Prevention Strategies",
+    highRiskSpots20: "Top 20 Critical Risk Spots",
+    mitigation: "Mitigation",
+    prevention: "Prevention",
 
     // Filters
     recentAccident: "Recent Accident",
@@ -382,6 +388,12 @@ export const translations = {
     trainingSteps: "ขั้นตอนการฝึกฝน",
     coachingMotivation: "เปลี่ยนข้อมูลเป็นนิสัยที่ปลอดภัยขึ้น สร้างโปรแกรมการฝึกอบรมส่วนบุคคลตามการวิเคราะห์ปัจจุบัน",
     coachingTips: "เคล็ดลับการฝึกสอน",
+    investigation: "การสืบสวนเชิงลึก",
+    mitigationPlan: "แผนการบรรเทาความเสี่ยง",
+    preventionStrategies: "กลยุทธ์การป้องกัน",
+    highRiskSpots20: "20 จุดเสี่ยงวิกฤตที่ต้องเฝ้าระวัง",
+    mitigation: "แผนบรรเทาเหตุ",
+    prevention: "แนวทางป้องกัน",
 
     // Filters
     recentAccident: "อุบัติเหตุล่าสุด",

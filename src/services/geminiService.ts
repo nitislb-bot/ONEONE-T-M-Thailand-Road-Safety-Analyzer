@@ -242,6 +242,15 @@ export interface CoachingModule {
   riskRelation: string;
 }
 
+export interface RiskSpot {
+  locationName: string;
+  latitude: number;
+  longitude: number;
+  hazardType: string;
+  mitigationStrategy: string;
+  preventionAdvice: string;
+}
+
 export interface DriverCoachingReport {
   id?: string;
   timestamp?: number;
@@ -249,19 +258,25 @@ export interface DriverCoachingReport {
   locationContext?: string;
   summary: string;
   riskProfile: string;
+  investigationDetails: string;
+  mitigationPlan: string;
+  preventionStrategies: string;
   modules: CoachingModule[];
   personalizedChecklist: string[];
+  highRiskSpots: RiskSpot[];
 }
 
 export async function getDriverCoaching(
   analysis: SafetyAnalysis,
   journeyPlan?: JourneySafetyReport
 ): Promise<DriverCoachingReport> {
-  const prompt = `Act as an AI Driver Coach. Based on the following safety data, generate a personalized "Driver Coaching & Training Program".
+  const prompt = `Act as an AI Driver Coach. Based on the following safety data, generate a personalized "Driver Coaching & Training Program" with deep investigation, mitigation, and prevention strategies.
 
 AREA SAFETY CONTEXT:
 Summary: ${analysis.summary}
 Overall Risk: ${analysis.overallRisk}
+Province: ${analysis.province}
+District: ${analysis.district}
 Accident Patterns: ${analysis.recentAccidents.map(a => a.type).join(', ')}
 
 ${journeyPlan ? `JOURNEY CONTEXT:
@@ -270,29 +285,33 @@ Hazards: ${journeyPlan.hazardsOnRoute.map(h => h.hazardType).join(', ')}
 Advice: ${journeyPlan.adviseForDriver}` : ''}
 
 YOUR TASK:
-1. RISK PROFILE: Briefly summarize the specific areas where this driver needs to improve based on the local accident patterns (e.g., if there are many motorcycle collisions, focus on blind-spot awareness).
-2. COACHING MODULES: Provide 3-4 structured training modules. Each module should include:
-   - A clear title.
-   - A category (Technique, Awareness, Equipment, or Mental).
-   - 3 actionable tips.
-   - 3 training steps (drills or exercises the driver can do).
-   - Risk Relation: Explain exactly how this module reduces the risk of the specific accidents detected in the area/journey.
-3. PERSONALIZED CHECKLIST: A 5-point checklist for the driver to review before they start their engine.
+1. DEEP INVESTIGATION: Analyze the root causes of the accidents and black spots in the area. Identify environmental factors, infrastructure issues, and common driver behaviors contributing to risk.
+2. MITIGATION & PREVENTION: Provide detailed strategies for the driver to mitigate these risks and prevent future incidents (e.g., specific defensive driving techniques, vehicle maintenance, route adjustments).
+3. 20 HIGH RISK SPOTS: Identify exactly 20 high-risk spots (lat/lng) within the analyzed area or along the route. For each spot, provide:
+   - Specific location name (Thai/English).
+   - Hazard type.
+   - Mitigation strategy for that specific location.
+   - Prevention advice.
+4. COACHING MODULES: Provide 3-4 structured training modules (Technique, Awareness, Equipment, or Mental) with actionable tips and training steps, explaining how they reduce the specific risks detected.
+5. PERSONALIZED CHECKLIST: A 5-point checklist for the driver.
 
 FORMAT: Return a JSON object matching the DriverCoachingReport structure.
-CRITICAL: ALL text output MUST be in the THAI language so the Thai driver can easily understand.`;
+CRITICAL: ALL text output MUST be in the THAI language (except IDs/schema keys).`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
-      systemInstruction: "You are a professional defensive driving instructor using data-driven insights to coach corporate and individual drivers. Your tone is supportive but firm on safety. Focus on root causes found in the accident data. Speak entirely in Thai.",
+      systemInstruction: "You are a professional defensive driving instructor and safety data investigator. Your goal is to provide deep insights and actionable prevention strategies. Focus on root causes. Provide exactly 20 risk spots. Speak entirely in Thai.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
           summary: { type: Type.STRING },
           riskProfile: { type: Type.STRING },
+          investigationDetails: { type: Type.STRING },
+          mitigationPlan: { type: Type.STRING },
+          preventionStrategies: { type: Type.STRING },
           modules: {
             type: Type.ARRAY,
             items: {
@@ -307,9 +326,24 @@ CRITICAL: ALL text output MUST be in the THAI language so the Thai driver can ea
               required: ["title", "category", "tips", "trainingSteps", "riskRelation"]
             }
           },
-          personalizedChecklist: { type: Type.ARRAY, items: { type: Type.STRING } }
+          personalizedChecklist: { type: Type.ARRAY, items: { type: Type.STRING } },
+          highRiskSpots: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                locationName: { type: Type.STRING },
+                latitude: { type: Type.NUMBER },
+                longitude: { type: Type.NUMBER },
+                hazardType: { type: Type.STRING },
+                mitigationStrategy: { type: Type.STRING },
+                preventionAdvice: { type: Type.STRING }
+              },
+              required: ["locationName", "latitude", "longitude", "hazardType", "mitigationStrategy", "preventionAdvice"]
+            }
+          }
         },
-        required: ["summary", "riskProfile", "modules", "personalizedChecklist"]
+        required: ["summary", "riskProfile", "investigationDetails", "mitigationPlan", "preventionStrategies", "modules", "personalizedChecklist", "highRiskSpots"]
       }
     }
   });

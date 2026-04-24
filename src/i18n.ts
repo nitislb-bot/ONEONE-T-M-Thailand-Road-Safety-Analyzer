@@ -11,6 +11,8 @@ export const translations = {
     loading: "Loading...",
     systemError: "System Error",
     unexpectedError: "An unexpected error occurred. This might be due to security rules or a connection issue.",
+    quotaExceededTitle: "Daily Limit Reached",
+    quotaExceededDesc: "Today's free database usage limit has been reached. The quota will reset automatically tomorrow (at midnight Pacific Time).",
     reloadApp: "Reload Application",
     
     // Sidebar
@@ -243,6 +245,8 @@ export const translations = {
     loading: "กำลังโหลด...",
     systemError: "ระบบขัดข้อง",
     unexpectedError: "เกิดข้อผิดพลาดไม่คาดคิด อาจเกิดจากกฎความปลอดภัยหรือปัญหาการเชื่อมต่อ",
+    quotaExceededTitle: "โควตาการใช้งานรายวันเต็ม",
+    quotaExceededDesc: "ขีดจำกัดการใช้งานฐานข้อมูลฟรีของวันนี้เต็มแล้ว โควตาจะรีเซ็ตโดยอัตนีมัติในวันพรุ่งนี้ (เวลาเที่ยงคืนเวลาแปซิฟิก)",
     reloadApp: "โหลดแอปพลิเคชันใหม่",
     
     // Sidebar

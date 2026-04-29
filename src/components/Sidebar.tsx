@@ -70,10 +70,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isFullScreen,
   toggleFullScreen
 }) => {
-  const [sidebarMode, setSidebarMode] = useState<'area' | 'journey' | 'coaching'>('area');
+  const [sidebarMode, setSidebarMode] = useState<'area' | 'journey' | 'coaching' | 'info'>('area');
   const [historyTab, setHistoryTab] = useState<'area' | 'journey' | 'coaching'>('area');
   const [journeyOrigin, setJourneyOrigin] = useState('');
   const [journeyDest, setJourneyDest] = useState('');
+  const [waypoints, setWaypoints] = useState<string[]>([]);
+  const [googleMapsLink, setGoogleMapsLink] = useState('');
+  const [isParsingLink, setIsParsingLink] = useState(false);
   const [journeyReport, setJourneyReport] = useState<JourneySafetyReport | null>(null);
   const [isGeneratingJourney, setIsGeneratingJourney] = useState(false);
   const [isGeneratingCoaching, setIsGeneratingCoaching] = useState(false);
@@ -182,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleGenerateJourneyPlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!journeyOrigin || !journeyDest) {
+    if (!googleMapsLink && (!journeyOrigin || !journeyDest)) {
       setError(t.fillOriginDest);
       return;
     }
@@ -190,7 +193,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsGeneratingJourney(true);
     setError(null);
     try {
-      const plan = await getJourneySafetyPlan(journeyOrigin, journeyDest, undefined, analysis || undefined);
+      const plan = await getJourneySafetyPlan(
+        googleMapsLink ? '' : journeyOrigin, 
+        googleMapsLink ? '' : journeyDest, 
+        googleMapsLink ? [] : waypoints, 
+        undefined, 
+        analysis || undefined,
+        googleMapsLink || undefined
+      );
       setJourneyReport(plan);
       onJourneyPlanComplete(plan);
     } catch (err: any) {
@@ -412,6 +422,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
         <p className="text-xs md:text-sm text-white/50 mt-1 md:mt-2 print:text-gray-800">{t.evaluateIntro}</p>
+      </div>
+
+      <div className="px-4 md:px-6 py-2 border-b border-white/5 bg-black/20 print-hide">
+        <div className="flex bg-white/5 p-1 rounded-lg">
+          <button
+            onClick={() => { setSidebarMode('area'); setShowHistory(false); }}
+            className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${sidebarMode === 'area' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+          >
+            {t.areaAnalysis || 'Area'}
+          </button>
+          <button
+            onClick={() => { setSidebarMode('journey'); setShowHistory(false); }}
+            className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${sidebarMode === 'journey' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+          >
+            {t.journeyPlan || 'Journey'}
+          </button>
+          <button
+            onClick={() => { setSidebarMode('coaching'); setShowHistory(false); }}
+            className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${sidebarMode === 'coaching' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+          >
+            {t.driverCoaching || 'Coaching'}
+          </button>
+          <button
+            onClick={() => { setSidebarMode('info'); setShowHistory(false); }}
+            className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition-all ${sidebarMode === 'info' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/50 hover:text-white/80'}`}
+          >
+            {t.aboutTitle || 'Info'}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto print:overflow-visible">
@@ -676,9 +715,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div className="p-4 md:p-6 print:p-0">
             <div className="space-y-6">
-              {sidebarMode === 'journey' ? (
+              {sidebarMode === 'info' ? (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+                  <div className="bg-blue-900/10 border border-blue-500/30 p-6 rounded-2xl shadow-xl">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <Info className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white">{t.aboutTitle || 'Road Safety Information'}</h3>
+                    </div>
+                    
+                    <p className="text-sm text-white/70 leading-relaxed mb-6 font-medium">
+                      {t.thailandSafetyContext}
+                    </p>
+
+                    <a 
+                      href="https://extranet.who.int/roadsafety/death-on-the-roads/#country_or_area/THA"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all group active:scale-95"
+                    >
+                      <div className="flex items-center gap-3">
+                        <ExternalLink className="w-5 h-5 text-blue-400" />
+                        <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+                          {t.whoRoadSafetyLink}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/40" />
+                    </a>
+                  </div>
+
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-xl">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                        <ThumbsUp className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white">Credits & Values</h3>
+                    </div>
+                    <p className="text-sm text-white/60 leading-relaxed italic mb-6">
+                      {t.credits}
+                    </p>
+                    <div className="pt-4 border-t border-white/5">
+                      <div className="flex items-center justify-center gap-2 text-blue-400 font-black text-xs uppercase tracking-widest">
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>{t.staySafe}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : sidebarMode === 'journey' ? (
                 <>
                   <form onSubmit={handleGenerateJourneyPlan} className="space-y-4">
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Route className="w-4 h-4 text-blue-400" />
+                        <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t.googleMapsLink}</h4>
+                      </div>
+                      <div className="relative">
+                        <ExternalLink className="absolute left-3 top-2.5 h-4 w-4 text-white/30" />
+                        <input
+                          type="text"
+                          value={googleMapsLink}
+                          onChange={(e) => setGoogleMapsLink(e.target.value)}
+                          placeholder={t.pasteGoogleMapsLink}
+                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs text-white placeholder:text-white/20"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="relative flex items-center py-2">
+                      <div className="flex-grow border-t border-white/5"></div>
+                      <span className="flex-shrink mx-4 text-[9px] font-bold text-white/20 uppercase tracking-widest">OR</span>
+                      <div className="flex-grow border-t border-white/5"></div>
+                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-white/70 mb-1">{t.origin}</label>
                       <div className="relative">
@@ -688,7 +798,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           value={journeyOrigin}
                           onChange={(e) => setJourneyOrigin(e.target.value)}
                           placeholder={t.provincePlaceholder}
-                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                          disabled={!!googleMapsLink}
+                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30 disabled:opacity-50"
                         />
                       </div>
                       {analysis && analysis.province && (
@@ -696,15 +807,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <button 
                             type="button"
                             onClick={() => setJourneyOrigin(`${analysis.district}, ${analysis.province}`)}
-                            className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                            disabled={!!googleMapsLink}
+                            className="text-[10px] text-blue-400 hover:underline flex items-center gap-1 disabled:opacity-50"
                           >
                             <CheckCircle2 className="w-2.5 h-2.5" />
                             {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
                           </button>
-                          <div className="flex items-center gap-2 text-[9px] text-white/30 backdrop-blur-sm bg-white/5 p-1 rounded border border-white/5">
-                            <Database className="w-2.5 h-2.5 text-blue-500" />
-                            <span>{t.deepAnalysisLink}</span>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -717,14 +825,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           value={journeyDest}
                           onChange={(e) => setJourneyDest(e.target.value)}
                           placeholder={t.provincePlaceholder}
-                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30"
+                          disabled={!!googleMapsLink}
+                          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder:text-white/30 disabled:opacity-50"
                         />
                       </div>
                       {analysis && analysis.province && (
                         <button 
                           type="button"
                           onClick={() => setJourneyDest(`${analysis.district}, ${analysis.province}`)}
-                          className="text-[10px] text-blue-400 mt-1 hover:underline flex items-center gap-1"
+                          disabled={!!googleMapsLink}
+                          className="text-[10px] text-blue-400 mt-1 hover:underline flex items-center gap-1 disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-2.5 h-2.5" />
                           {t.selectFromAnalysis}: {analysis.district}, {analysis.province}
@@ -733,13 +843,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                     <button
                       type="submit"
-                      disabled={isGeneratingJourney}
+                      disabled={isGeneratingJourney || (!googleMapsLink && (!journeyOrigin || !journeyDest))}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {isGeneratingJourney ? (
                         <><Loader2 className="w-5 h-5 animate-spin" /> {t.assessingRoute}</>
                       ) : (
-                        <><ShieldCheck className="w-5 h-5" /> {t.generateJourneyPlan}</>
+                        <><ShieldCheck className="w-5 h-5" /> {googleMapsLink ? t.parseLink : t.generateJourneyPlan}</>
                       )}
                     </button>
                   </form>

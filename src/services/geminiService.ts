@@ -383,7 +383,8 @@ export async function getJourneySafetyPlan(
   origin: string,
   destination: string,
   departureTime?: string,
-  areaAnalysisContext?: SafetyAnalysis
+  areaAnalysisContext?: SafetyAnalysis,
+  googleMapsLink?: string
 ): Promise<JourneySafetyReport> {
   let contextString = '';
   if (areaAnalysisContext) {
@@ -399,7 +400,7 @@ export async function getJourneySafetyPlan(
     `;
   }
 
-  const prompt = `Develop a "Smart Journey Safety Management Plan" for a drive from "${origin}" to "${destination}"${departureTime ? ` departing at ${departureTime}` : ''}.
+  const prompt = `Develop a "Smart Journey Safety Management Plan" for a drive ${googleMapsLink ? `using the route from this link: ${googleMapsLink}` : `from "${origin}" to "${destination}"`}${departureTime ? ` departing at ${departureTime}` : ''}.
   ${contextString}
   
   LANGUAGE REQUIREMENT:
@@ -412,6 +413,8 @@ export async function getJourneySafetyPlan(
   3. HISTORICAL HAZARDS: Identify known "Black Spots" or sharp curves on the main highways connecting these two points.
   
   REQUIRED OUTPUT:
+  - Origin: (The starting point name extracted from the link or provided)
+  - Destination: (The end point name extracted from the link or provided)
   - Overall Safety Rating: (Safe / Caution / High Risk)
   - Weather Alerts: List specific weather conditions and their impact on driving (e.g., "ถนนลื่นเนื่องจากฝนตก").
   - Traffic: List bottlenecks and delays.
